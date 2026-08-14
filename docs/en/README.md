@@ -13,6 +13,7 @@ This documentation supports two different workflows:
 ## Start here
 
 - [Getting started: first addon in 10 minutes](GETTING_STARTED.md)
+- [What can you build with Political World?](what-you-can-build.md)
 - [API 1.6 quick reference](API_REFERENCE_1_6.md)
 - [Ideologies](ideologies.md)
 - [Governments](governments.md)

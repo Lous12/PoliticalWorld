@@ -13,6 +13,7 @@
 ## Куда идти сначала
 
 - [Быстрый старт: первый аддон за 10 минут](GETTING_STARTED.md)
+- [Что можно создавать с помощью Political World?](what-you-can-build.md)
 - [Справочник API 1.6](API_REFERENCE_1_6.md)
 - [Идеологии](ideologies.md)
 - [Формы правления](governments.md)
