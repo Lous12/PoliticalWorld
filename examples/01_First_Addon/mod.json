@@ -1,0 +1,13 @@
+{
+  "name": "PW SDK Example 01 - First Addon",
+  "GUID": "Lous12.PWSDK.Example01",
+  "author": "Lous12",
+  "version": "1.0.0",
+  "description": "Minimal registration example",
+  "targetGameBuild": 719,
+  "Dependencies": [
+    "Lous12.PoliticalWorld"
+  ],
+  "OptionalDependencies": [],
+  "IncompatibleWith": []
+}

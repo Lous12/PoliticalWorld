@@ -1,0 +1,1 @@
+Registers one root ideology with RandomWeight=0.

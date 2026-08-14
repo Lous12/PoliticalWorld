@@ -1,0 +1,55 @@
+{
+  "candidate": "Political World 1.7.0 Public Beta Candidate / Step 11",
+  "core_guid": "Lous12.PoliticalWorld",
+  "api_version": "1.6.0",
+  "runtime_csharp_files": 41,
+  "runtime_code_byte_identical_to_runtime_confirmed_step10": true,
+  "main_cs_lines": 11,
+  "csharp_namespaces": [
+    "Lous12.PoliticalWorld"
+  ],
+  "api_todo_fixme_notimplemented_hits": 0,
+  "brace_balance_failures": [],
+  "ru_en_doc_filename_parity": true,
+  "ru_doc_count": 19,
+  "en_doc_count": 19,
+  "example_dependencies": [
+    [
+      "01_First_Addon",
+      true
+    ],
+    [
+      "02_Custom_Ideology",
+      true
+    ],
+    [
+      "03_Custom_Government",
+      true
+    ],
+    [
+      "04_Event_Listener",
+      true
+    ],
+    [
+      "05_Rare_Event",
+      true
+    ],
+    [
+      "06_Scenario_Action",
+      true
+    ]
+  ],
+  "legacy_ukiol_ids_preserved": true,
+  "license": "MIT",
+  "public_runtime_docs": [
+    "AI_START_HERE.md",
+    "ARCHITECTURE.md",
+    "IDENTITY_AND_LEGACY_IDS.md",
+    "SDK_STATUS.md"
+  ],
+  "notes": [
+    "Runtime C# is unchanged from the user-confirmed Step 10 build.",
+    "Public candidate changes only metadata, license, developer documentation and packaging.",
+    "Full runtime compilation still requires the user WorldBox/NML environment."
+  ]
+}

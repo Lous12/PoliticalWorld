@@ -1,0 +1,27 @@
+name: Public API capability request
+description: Request a safe capability for Political World addons
+title: "[API] "
+labels: [api, enhancement]
+body:
+  - type: textarea
+    attributes:
+      label: Addon goal
+      description: What is the addon trying to achieve?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Missing capability
+      description: What cannot currently be done through PoliticalWorldAPI?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Why existing API is insufficient
+      description: Mention methods/capabilities already considered.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Proposed safe API shape
+      description: Optional. Do not rely on reflection/internal classes.

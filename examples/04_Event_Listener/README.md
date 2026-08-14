@@ -1,0 +1,1 @@
+Subscribes to two Political World core events. No Update loop.

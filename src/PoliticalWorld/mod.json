@@ -1,0 +1,13 @@
+{
+  "name": "Political World",
+  "GUID": "Lous12.PoliticalWorld",
+  "author": "Lous12",
+  "version": "1.7.0",
+  "description": "Political World 1.7.0 public beta candidate: ideologies, parties, governments, crises, blocs, summits, political warfare integration, Political Map, and Public PoliticalWorldAPI 1.6 for third-party addons.",
+  "RepoUrl": "https://github.com/Lous12/PoliticalWorld",
+  "targetGameBuild": 719,
+  "iconPath": "icon.png",
+  "Dependencies": [],
+  "OptionalDependencies": [],
+  "IncompatibleWith": []
+}

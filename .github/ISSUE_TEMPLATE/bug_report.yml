@@ -1,0 +1,38 @@
+name: Bug report
+description: Report a Political World runtime or compatibility bug
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: textarea
+    attributes:
+      label: What happened?
+      description: Describe the expected and actual behavior.
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: WorldBox version/build
+      placeholder: "0.51.2 / build 719"
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: NeoModLoader version
+      placeholder: "1.2.0.1"
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Political World version
+      placeholder: "1.7.0"
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Relevant log
+      description: Attach Player.log or paste the smallest relevant error section.

@@ -1,0 +1,24 @@
+Political World 1.7.0 INTERNAL — Foundation Step 9A
+
+Canonical project identity:
+- Folder: PoliticalWorld
+- NML GUID / dependency ID: Lous12.PoliticalWorld
+- Public C# namespace: Lous12.PoliticalWorld
+- Public API entry point: Lous12.PoliticalWorld.PoliticalWorldAPI
+- Public API version: 1.6.0 (UNCHANGED in this step)
+
+INSTALL
+1. Delete/replace the previous internal PoliticalWorld folder.
+2. Install this PoliticalWorld folder.
+3. The existing API 1.6 Canary can remain installed for the test.
+
+FOUNDATION STEP 9A — FIRST SAFE MAIN.CS SPLIT
+The Political Map implementation was moved out of the giant Main.cs into:
+- Map/PoliticalMap/PoliticalMap.State.cs
+- Map/PoliticalMap/PoliticalMap.Patches.cs
+- Map/PoliticalMap/PoliticalMap.Rendering.cs
+
+No Political Map logic was redesigned. The same constants, fields, nested meta object, Harmony patch handlers, map registration and rendering methods were moved into partial Main files. Call sites and public API are unchanged.
+
+IMPORTANT
+Legacy internal IDs beginning with ukiol_ remain intentionally unchanged for save/content compatibility.

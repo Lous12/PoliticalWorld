@@ -1,0 +1,13 @@
+{
+  "name": "PW SDK Example 05 - Rare Event",
+  "GUID": "Lous12.PWSDK.Example05",
+  "author": "Lous12",
+  "version": "1.0.0",
+  "description": "Rare political event example",
+  "targetGameBuild": 719,
+  "Dependencies": [
+    "Lous12.PoliticalWorld"
+  ],
+  "OptionalDependencies": [],
+  "IncompatibleWith": []
+}

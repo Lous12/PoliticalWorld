@@ -1,0 +1,22 @@
+# Political World — AI/LLM entry
+Project: Political World for WorldBox
+Core: 1.7.0 public beta candidate
+Public API: PoliticalWorldAPI 1.6.0
+Public namespace: Lous12.PoliticalWorld
+
+Read first:
+- /AI_START_HERE.md
+- /ARCHITECTURE.md
+- /API_VERSIONING.md
+- /docs/en/GETTING_STARTED.md
+- /docs/en/API_REFERENCE_1_6.md
+- /docs/ru/GETTING_STARTED.md
+- /docs/ru/API_REFERENCE_1_6.md
+
+Rules for addons:
+- Use only public PoliticalWorldAPI.
+- Do not depend on Main, ScenarioBridge, reflection, or internal modules.
+- Use stable namespaced IDs.
+- Check IsCompatible and HasCapability.
+- Prefer Event Bus and Rare Political Event Registry over permanent polling.
+- Use addon-private state for private data.

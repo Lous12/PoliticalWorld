@@ -1,0 +1,1 @@
+Registers a harmless explicit action. It only runs if another tool calls ExecuteAction.

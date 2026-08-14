@@ -1,0 +1,1 @@
+Registers a Magocracy that reuses the Oligarchy mechanical archetype.

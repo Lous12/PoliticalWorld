@@ -1,0 +1,11 @@
+{
+  "name": "My WorldBox NeoMod",
+  "GUID": "YourName.MyWorldBoxMod",
+  "author": "YourName",
+  "version": "0.1.0",
+  "description": "Standalone NeoModLoader starter",
+  "targetGameBuild": 719,
+  "Dependencies": [],
+  "OptionalDependencies": [],
+  "IncompatibleWith": []
+}

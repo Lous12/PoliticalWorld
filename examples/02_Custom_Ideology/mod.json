@@ -1,0 +1,13 @@
+{
+  "name": "PW SDK Example 02 - Ideology",
+  "GUID": "Lous12.PWSDK.Example02",
+  "author": "Lous12",
+  "version": "1.0.0",
+  "description": "Custom ideology example",
+  "targetGameBuild": 719,
+  "Dependencies": [
+    "Lous12.PoliticalWorld"
+  ],
+  "OptionalDependencies": [],
+  "IncompatibleWith": []
+}

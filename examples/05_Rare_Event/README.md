@@ -1,0 +1,1 @@
+Rare event evaluated by the Political World yearly pipeline; it does not create its own Update loop.

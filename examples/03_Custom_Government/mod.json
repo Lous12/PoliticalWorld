@@ -1,0 +1,13 @@
+{
+  "name": "PW SDK Example 03 - Government",
+  "GUID": "Lous12.PWSDK.Example03",
+  "author": "Lous12",
+  "version": "1.0.0",
+  "description": "Custom government example",
+  "targetGameBuild": 719,
+  "Dependencies": [
+    "Lous12.PoliticalWorld"
+  ],
+  "OptionalDependencies": [],
+  "IncompatibleWith": []
+}
