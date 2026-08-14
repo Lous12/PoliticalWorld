@@ -1,0 +1,125 @@
+title: "[Addon] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        # 📦 Submit your Political World addon / Отправить аддон Political World
+
+        Use this form if you want your addon to be tested for compatibility and considered for the verified Community Addons catalog.
+
+        Используйте эту форму, если хотите отправить свой аддон на проверку совместимости и возможное добавление в каталог Community Addons.
+
+        Small projects are welcome too — one ideology, one government, one event, or a learning experiment is enough.
+
+        Маленькие проекты тоже приветствуются — одной идеологии, формы правления, события или учебного эксперимента уже достаточно.
+
+  - type: input
+    id: addon_name
+    attributes:
+      label: Addon name / Название аддона
+      placeholder: "Example: Fantasy Ideologies"
+    validations:
+      required: true
+
+  - type: input
+    id: author
+    attributes:
+      label: Author / Автор
+      description: "GitHub, Steam or other public author name / Публичное имя автора"
+      placeholder: "Example: SomeModder"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description / Описание
+      description: "What does the addon add? / Что добавляет аддон?"
+      placeholder: |
+        Example:
+        - Adds a new ideology
+        - Adds one custom government
+        - Adds political events
+    validations:
+      required: true
+
+  - type: input
+    id: download
+    attributes:
+      label: Download or Steam Workshop link / Ссылка на скачивание или Steam Workshop
+      placeholder: "https://..."
+    validations:
+      required: true
+
+  - type: input
+    id: source
+    attributes:
+      label: Source code / Исходный код
+      description: "Optional if the source is not public / Необязательно, если исходники закрыты"
+      placeholder: "https://github.com/..."
+
+  - type: input
+    id: pw_version
+    attributes:
+      label: Political World version / Версия Political World
+      placeholder: "1.7.0"
+    validations:
+      required: true
+
+  - type: input
+    id: api_version
+    attributes:
+      label: PoliticalWorldAPI version / Версия PoliticalWorldAPI
+      placeholder: "1.6.0"
+    validations:
+      required: true
+
+  - type: input
+    id: dependencies
+    attributes:
+      label: Other dependencies / Другие зависимости
+      description: "Write None if there are no other dependencies / Напишите None, если других зависимостей нет"
+      placeholder: "None"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: public_api
+    attributes:
+      label: Does the addon use only the public PoliticalWorldAPI? / Использует ли аддон только публичный PoliticalWorldAPI?
+      options:
+        - "Yes / Да"
+        - "No / Нет"
+        - "Not sure / Не уверен"
+    validations:
+      required: true
+
+  - type: textarea
+    id: test_checklist
+    attributes:
+      label: What should be tested? / Что нужно проверить?
+      description: "List the main advertised features / Перечислите основные заявленные функции"
+      placeholder: |
+        Example:
+        - New ideology appears correctly
+        - Government can be assigned
+        - Event triggers
+        - No addon-related errors in Player.log
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional notes / Дополнительная информация
+      description: "Installation steps, known issues, special test conditions, etc. / Установка, известные проблемы, особые условия проверки и т.д."
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmation / Подтверждение
+      options:
+        - label: "I provided a working download link. / Я указал рабочую ссылку на скачивание."
+          required: true
+        - label: "I understand that verification means compatibility testing, not a permanent guarantee or security certification. / Я понимаю, что проверка означает проверку совместимости, а не пожизненную гарантию или сертификат безопасности."
+          required: true
