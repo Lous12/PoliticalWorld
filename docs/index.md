@@ -7,19 +7,22 @@
 <p align="center"><strong>Political framework & modding SDK for WorldBox</strong></p>
 
 <p align="center">
-  <a href="en/README.md"><strong>English documentation</strong></a> ·
+  <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3780484869"><strong>Steam Workshop</strong></a> ·
+  <a href="en/README.md"><strong>English Docs</strong></a> ·
   <a href="ru/README.md"><strong>Русская документация</strong></a> ·
-  <a href="https://github.com/Lous12/PoliticalWorld"><strong>GitHub</strong></a> ·
-  <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3780484869"><strong>Steam Workshop</strong></a>
+  <a href="en/community-addons.md"><strong>Community Addons</strong></a> ·
+  <a href="https://github.com/Lous12/PoliticalWorld"><strong>GitHub</strong></a>
 </p>
 
 ---
 
-## What is Political World?
+## Play Political World
 
-Political World adds a lightweight political layer to WorldBox: ideologies, parties, governments, elections, councils, crises, blocs, summits, war-related politics and a Political Map.
+Political World adds a lightweight political layer to WorldBox: ideologies, parties, governments, elections, councils, crises, international blocs, summits, war-related politics and a Political Map.
 
-Starting with 1.7, it is also a **public framework for other modders**. You can extend Political World through a documented API instead of editing its internal code.
+**[Install Political World from Steam Workshop →](https://steamcommunity.com/sharedfiles/filedetails/?id=3780484869)**
+
+Starting with 1.7, Political World is also a **public framework for other modders**. Addons can extend the political simulation through a documented API instead of editing the core mod.
 
 ```text
 WorldBox + NeoModLoader
@@ -28,7 +31,7 @@ Political World Core
         ↓
 PoliticalWorldAPI 1.6
         ↓
-Your addon / community mod / Scenario Tools / Fantasy Politics
+Your addon / community mod
 ```
 
 ## Start creating
@@ -45,12 +48,25 @@ You do not need to begin with a huge project.
 | Make a standalone WorldBox/NML mod | [Standalone NML starter](en/standalone-nml-starter.md) |
 | Create with ChatGPT / Claude / Codex | [Using AI](en/using-ai.md) |
 
+## Community Addons
+
+Political World is built so other people can create on top of it.
+
+The community catalog is **curated**: an addon is added to the verified list after it has been checked by the Political World maintainer on a supported version.
+
+At the moment there are no verified community addons yet — the catalog is ready for the first ones.
+
+**[Community Addons — English →](en/community-addons.md)**  
+**[Аддоны сообщества — Русский →](ru/community-addons.md)**
+
+Small projects are welcome too. A single ideology, one event, or a tiny experiment can be listed alongside large overhauls.
+
 ## What can you build?
 
 Political World can be used for tiny learning projects or large overhauls.
 
 - one new ideology or ideological branch;
-- custom governments such as Magocracy, Dragon Monarchy or Technocracy;
+- custom governments;
 - political event packs;
 - party and election extensions;
 - fantasy politics systems;
@@ -81,13 +97,23 @@ Do not depend on internal Main or ScenarioBridge classes.
 Use namespaced IDs and validate API capabilities.
 ```
 
+## Support Political World
+
+Political World is free and open-source. If you want to support its development:
+
+- **[DonationAlerts](https://www.donationalerts.com/r/lous12)**
+- **[DALink](https://dalink.to/lous12)**
+
+Поддержать разработку:
+
+- **[DonationAlerts](https://www.donationalerts.com/r/lous12)**
+- **[DALink](https://dalink.to/lous12)**
+
 ## Open for everyone
 
 Political World is released under the **MIT License**.
 
-That means people may study the source, fork the project, modify it, build addons, create their own versions, learn from the examples, and continue the project if development ever stops — while preserving the MIT license/copyright notice where required.
-
-The goal is simple:
+People may study the source, fork the project, modify it, build addons, create their own versions, learn from the examples, and continue the project if development ever stops — while preserving the required MIT license/copyright notice.
 
 > **Give people a place to learn by creating. Start small, break things, understand them, fix them, and make something that is yours.**
 
