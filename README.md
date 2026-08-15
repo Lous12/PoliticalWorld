@@ -1,174 +1,120 @@
 <p align="center">
-  <img src="docs/assets/icon.png" width="128" alt="Political World icon">
+  <img src="docs/assets/github-banner.svg" alt="Political World banner" width="100%">
 </p>
 
 <h1 align="center">Political World</h1>
-
-<p align="center"><strong>A WorldBox politics mod and open addon framework — built so anyone can create.</strong></p>
+<p align="center"><strong>Politics mod for WorldBox • Public API • Addon framework</strong></p>
 
 <p align="center">
   <a href="README_RU.md">Русский</a> ·
   <a href="https://lous12.github.io/PoliticalWorld/">Website</a> ·
-  <a href="docs/en/GETTING_STARTED.md">Addon quick start</a> ·
-  <a href="https://github.com/Lous12/PoliticalWorld/discussions">Discussions</a> ·
-  <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3780484869">Steam Workshop</a>
+  <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3780484869">Steam Workshop</a> ·
+  <a href="https://github.com/Lous12/PoliticalWorld/discussions">Discussions</a>
 </p>
 
 <p align="center">
-  <img alt="Political World" src="https://img.shields.io/badge/Political%20World-1.7.0%20Beta-blue">
-  <img alt="Public API" src="https://img.shields.io/badge/Public%20API-1.9.0-blueviolet">
-  <img alt="WorldBox" src="https://img.shields.io/badge/WorldBox%20PC-0.51.2-informational">
-  <img alt="NeoModLoader" src="https://img.shields.io/badge/NeoModLoader-1.2.0.1-informational">
-  <img alt="License" src="https://img.shields.io/badge/License-MIT-green">
+  <img alt="Political World" src="https://img.shields.io/badge/Political%20World-1.7.0%20Public%20Beta-2563eb">
+  <img alt="Public API" src="https://img.shields.io/badge/Public%20API-1.9.0-8b5cf6">
+  <img alt="WorldBox" src="https://img.shields.io/badge/WorldBox%20PC-0.51.2-0ea5e9">
+  <img alt="NeoModLoader" src="https://img.shields.io/badge/NML-1.2.0.1-10b981">
+  <img alt="License" src="https://img.shields.io/badge/License-MIT-22c55e">
 </p>
 
-> **Play it as a politics mod. Use it as a framework. Build something we never planned.**
+> **Play politics. Build anything.**
 
-Political World started as a political expansion for WorldBox. It adds ideologies, parties, governments, elections, crises, international blocs, summits, war-related politics and a Political Map.
+Political World started as a political expansion for WorldBox.  
+Today it is also becoming an **open addon framework**: the core mod remains focused on politics, while `PoliticalWorldAPI` gives creators stable tools to build addons on top of it.
 
-It is now also becoming an **open addon framework**. The public `PoliticalWorldAPI` exists so creators can build on a stable contract instead of editing Political World internals or depending on fragile implementation details.
+---
 
-The framework is intentionally growing **beyond politics**. Politics remains Political World's own gameplay layer, but third-party addons should not be forced to be political. General systems such as addon registration, localization fallback, data storage, tags, events, conditions, effects, actions and diagnostics are being developed as reusable building blocks for any kind of addon.
+## Quick navigation
 
-## For players
+| I want to... | Go here |
+|---|---|
+| Play the mod | [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3780484869) |
+| Read the docs | [Website](https://lous12.github.io/PoliticalWorld/) |
+| Make my first addon | [Getting Started](docs/en/GETTING_STARTED.md) |
+| Understand the framework direction | [Framework Vision](docs/en/FRAMEWORK_VISION.md) |
+| Ask questions / post addons | [Discussions](https://github.com/Lous12/PoliticalWorld/discussions) |
 
-Political World creates the feeling of deep politics without trying to simulate every citizen every frame.
+---
 
-Current gameplay includes:
+## Two sides of one project
 
-- ideology trees and currents;
-- political parties, leaders, support and radicalism;
-- government and political-system archetypes;
-- elections, councils, party congresses and leadership changes;
+### 🎮 Political World for players
+Political World adds a lightweight but deep-feeling political layer:
+
+- ideologies and currents;
+- parties, leaders, support and radicalism;
+- governments and political systems;
+- elections, councils and leadership changes;
 - stability, crises, rebellions, coups and revolutions;
-- international blocs and vanilla Alliance synchronization;
-- physical leader summits;
+- international blocs and alliance integration;
+- physical ruler summits;
 - war preparation, diplomatic crises and war exhaustion;
-- Political Map modes for parties, ideologies and political tension.
+- Political Map modes.
 
-## For creators
-
-The public entry point remains stable:
-
-```csharp
-using Lous12.PoliticalWorld;
-
-if (!PoliticalWorldAPI.IsCompatible(1, 9))
-    return;
-```
-
-API 1.9 provides creator-facing systems for:
+### 🧩 PoliticalWorldAPI for creators
+The public API already provides:
 
 - addon registration and validation;
-- optional localization with readable fallback text;
-- ideologies and custom governments;
-- parties, kingdom political state and rulers;
+- optional localization with readable fallback;
+- addon data and tags;
+- Event Bus;
 - Actions and Rare Events;
-- Event Bus subscriptions;
-- Conditions and reusable Effects;
-- addon-private `int`, `string`, `bool` and `float` data;
-- kingdom and party addon data;
-- shared and addon-private tags;
+- reusable Conditions and Effects;
 - diagnostics and structured operation results;
-- batch registration and addon content discovery.
+- ideologies, governments, parties and kingdom state.
 
-Localization files are **not mandatory**. An English-only addon can still display readable English text for a player using another language when no translation exists.
+**Localization is optional.**  
+If an addon only ships English text, players using another language can still see readable English instead of `missing text`.
 
-Political-specific APIs are only one module of the project. The next direction is a more general framework for world objects, custom content, UI/inspectors and cross-addon events.
+---
 
-```text
-WorldBox + NeoModLoader
-        ↓
-Political World
-  ├─ Political gameplay
-  └─ Public framework
-        ↓
-PoliticalWorldAPI 1.9
-        ↓
-Your addon
-  ├─ politics
-  ├─ fantasy
-  ├─ religion
-  ├─ economy
-  ├─ events
-  ├─ tools
-  └─ whatever you build next
-```
+## Framework direction
 
-The important rule is simple:
+Political World itself stays a politics mod.
 
-> If an addon needs to bypass the public API to reach Political World internals, that is a signal that the public API should probably be improved.
+`PoliticalWorldAPI` is being expanded into a more general addon framework so creators can build:
 
-## Why a general framework?
+- political extensions;
+- fantasy systems;
+- religions and cults;
+- economy and trade;
+- diseases and disasters;
+- character systems;
+- scenario / creator tools;
+- and other ideas that do not need to wait for the core mod.
 
-We do not want Political World to decide what kind of mod you are allowed to make.
+Read more: [Framework Vision](docs/en/FRAMEWORK_VISION.md)
 
-A creator may want to build:
-
-- one ideology or government;
-- a fantasy politics pack;
-- religions or cults;
-- magic systems;
-- economy or trade extensions;
-- disease and disaster systems;
-- dynasties and character mechanics;
-- scenario/director tools;
-- custom events;
-- creator utilities;
-- integrations between several independent addons.
-
-Not every example above is a built-in Political World system today. The goal of the framework is to provide reusable primitives so creators can implement systems without waiting for Political World itself to add them.
-
-Read: **[Framework vision](docs/en/FRAMEWORK_VISION.md)**.
+---
 
 ## Repository layout
 
 ```text
-src/PoliticalWorld/    Runtime mod + public API
-examples/              Small complete addon examples
-templates/             Political World addon + standalone NML starter
-docs/en/               English documentation
-docs/ru/               Russian documentation
-AI_START_HERE.md       Entry point for AI coding assistants
-ARCHITECTURE.md        Project boundaries and module layout
-API_VERSIONING.md      Public API compatibility policy
+src/PoliticalWorld/    Core mod + Public API
+docs/en/               English docs
+docs/ru/               Russian docs
+examples/              Small example addons
+templates/             Addon templates + standalone NML starter
+AI_START_HERE.md       Entry point for AI assistants
 ```
 
-## Compatibility
-
-| Component | Target |
-|---|---|
-| Political World | 1.7.0 Public Beta |
-| Public API | 1.9.0 |
-| WorldBox PC | 0.51.2 / build 719 |
-| NeoModLoader | 1.2.0.1 |
-
-Public API versioning is separate from both Political World gameplay versions and WorldBox compatibility.
+---
 
 ## Community
 
-Creators can use **GitHub Discussions** to ask questions, show work in progress and submit addons for testing.
+Useful links:
 
 - [Discussions](https://github.com/Lous12/PoliticalWorld/discussions)
 - [Community Addons](docs/en/community-addons.md)
 - [What can you build?](docs/en/what-you-can-build.md)
 
-Small experiments are welcome. A project does not need to be a giant overhaul to matter.
+Small projects matter. One event, one ideology, one tool or one experimental addon is already worth sharing.
 
-## AI-assisted development
-
-The repository is intentionally structured so AI coding assistants can work from documented public interfaces instead of reading and modifying the whole core.
-
-Start with:
-
-- [`AI_START_HERE.md`](AI_START_HERE.md)
-- [Using AI](docs/en/using-ai.md)
-- [Getting Started](docs/en/GETTING_STARTED.md)
+---
 
 ## License
 
-Political World is released under the [MIT License](LICENSE).
-
-Study it, fork it, modify it, build addons, create tools, learn from it, and continue the project if development ever pauses — while preserving the required MIT copyright/license notice for MIT-covered code.
-
-WorldBox belongs to Maxim Karpenko / its respective rights holders. Political World is a community mod and is not an official WorldBox project.
+Released under the [MIT License](LICENSE).
