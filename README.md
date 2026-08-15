@@ -22,32 +22,41 @@
 
 > **Play politics. Build anything.**
 
-Political World is both:
-- a politics mod for WorldBox;
-- and a growing addon framework through `PoliticalWorldAPI`.
+Political World is both a politics mod for WorldBox and a growing addon framework through `PoliticalWorldAPI`.
+
+## Current status
+
+- **Political World:** 1.7 Public Beta
+- **Public API:** 1.9.0
+- **Current development focus:** API 1.10 — General Framework
+- **Supported setup:** WorldBox PC 0.51.2 / build 719 + NeoModLoader 1.2.0.1
+
+Large gameplay additions may be less frequent while the framework is being expanded. The main mod is not abandoned.
 
 ## Quick links
-- [Open the website](https://lous12.github.io/PoliticalWorld/)
+
+- [Project website](https://lous12.github.io/PoliticalWorld/)
 - [Getting Started](docs/en/GETTING_STARTED.md)
-- [Framework Vision](docs/en/FRAMEWORK_VISION.md)
 - [API 1.9 Reference](docs/en/API_REFERENCE_1_9.md)
+- [Framework Vision](docs/en/FRAMEWORK_VISION.md)
+- [What can you build?](docs/en/what-you-can-build.md)
 - [Community Addons](docs/en/community-addons.md)
 - [Discussions](https://github.com/Lous12/PoliticalWorld/discussions)
 
 ## For players
-Political World adds ideologies, parties, governments, elections, crises, blocs, summits, war preparation and Political Map modes.
+
+Political World adds ideologies, parties, governments, elections, crises, international blocs, physical summits, war preparation and Political Map modes.
 
 ## For creators
-The Public API already includes addon registration, localization fallback, addon data and tags, Event Bus, Actions, Rare Events, Conditions, Effects and diagnostics.
 
-## Website
-The GitHub Pages site is the main navigation hub for the project:
-- player overview;
-- creator quick start;
-- English and Russian docs;
-- API links;
-- community links;
-- Steam / GitHub / Discussions.
+The Public API already includes addon registration, localization fallback, addon data and tags, Event Bus, Actions, Rare Events, Conditions, Effects, political registries and diagnostics.
+
+The next direction is to make more of those building blocks useful outside politics too.
+
+## Community
+
+Creators can ask questions, show WIP projects, request API capabilities and submit addons for compatibility testing through GitHub Discussions.
 
 ## License
+
 Released under the [MIT License](LICENSE).
