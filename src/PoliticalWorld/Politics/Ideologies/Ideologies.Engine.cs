@@ -1380,7 +1380,11 @@ namespace Lous12.PoliticalWorld
                 return LM.Get("ukiol_current_forming");
             }
 
-            return LM.Get(node.NameKey);
+            PoliticalWorldAPI.IdeologyInfo info =
+                PoliticalWorldAPI.GetIdeology(nodeId);
+            return info != null && !string.IsNullOrEmpty(info.DisplayName)
+                ? info.DisplayName
+                : PoliticalWorldAPI.ResolveLocalization(node.NameKey, nodeId);
         }
 
         private static string GetIdeologyTreePath(
@@ -1406,7 +1410,16 @@ namespace Lous12.PoliticalWorld
             int guard = 0;
             while (node != null && guard < IdeologyRegistryMaxDepth)
             {
-                names.Add(LM.Get(node.NameKey));
+                PoliticalWorldAPI.IdeologyInfo info =
+                    PoliticalWorldAPI.GetIdeology(node.Id);
+                names.Add(
+                    info != null && !string.IsNullOrEmpty(info.DisplayName)
+                        ? info.DisplayName
+                        : PoliticalWorldAPI.ResolveLocalization(
+                            node.NameKey,
+                            node.Id
+                        )
+                );
                 if (string.IsNullOrEmpty(node.ParentId))
                 {
                     break;
@@ -2950,9 +2963,19 @@ namespace Lous12.PoliticalWorld
             }
 
             IdeologyNode node = GetIdeologyNode(current);
-            return node != null
-                ? LM.Get(node.NameKey)
-                : LM.Get("ukiol_current_forming");
+            if (node == null)
+            {
+                return LM.Get("ukiol_current_forming");
+            }
+
+            PoliticalWorldAPI.IdeologyInfo info =
+                PoliticalWorldAPI.GetIdeology(current);
+            return info != null && !string.IsNullOrEmpty(info.DisplayName)
+                ? info.DisplayName
+                : PoliticalWorldAPI.ResolveLocalization(
+                    node.NameKey,
+                    current
+                );
         }
 
         private static int GetRulerIdeologyCompatibilityBonus(

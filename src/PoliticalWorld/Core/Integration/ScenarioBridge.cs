@@ -12,7 +12,7 @@ namespace Lous12.PoliticalWorld
         /// </summary>
         internal static class ScenarioBridge
         {
-            public const string ApiVersion = "1.6.0";
+            public const string ApiVersion = "1.8.0";
 
             public delegate bool KingdomActionCondition(Kingdom kingdom);
             public delegate void KingdomActionHandler(Kingdom kingdom);
@@ -24,6 +24,10 @@ namespace Lous12.PoliticalWorld
                 public string RootId;
                 public string NameKey;
                 public string DisplayName;
+                public string DescriptionKey;
+                public string Description;
+                public string Icon;
+                public int SortOrder;
                 public string Source;
                 public int Tier;
                 public string[] Tags;
@@ -38,6 +42,11 @@ namespace Lous12.PoliticalWorld
                 public string Id;
                 public string ParentId;
                 public string NameKey;
+                public string DisplayName;
+                public string DescriptionKey;
+                public string Description;
+                public string Icon;
+                public int SortOrder;
                 public string Source;
                 public int HighSupportStability;
                 public int SupportThreshold = -1;
@@ -131,6 +140,16 @@ namespace Lous12.PoliticalWorld
                 AddonIdeologySources = new Dictionary<string, string>(StringComparer.Ordinal);
             private static readonly Dictionary<string, int>
                 AddonIdeologyRandomWeights = new Dictionary<string, int>(StringComparer.Ordinal);
+            private static readonly Dictionary<string, string>
+                AddonIdeologyDisplayNames = new Dictionary<string, string>(StringComparer.Ordinal);
+            private static readonly Dictionary<string, string>
+                AddonIdeologyDescriptionKeys = new Dictionary<string, string>(StringComparer.Ordinal);
+            private static readonly Dictionary<string, string>
+                AddonIdeologyDescriptions = new Dictionary<string, string>(StringComparer.Ordinal);
+            private static readonly Dictionary<string, string>
+                AddonIdeologyIcons = new Dictionary<string, string>(StringComparer.Ordinal);
+            private static readonly Dictionary<string, int>
+                AddonIdeologySortOrders = new Dictionary<string, int>(StringComparer.Ordinal);
 
             // Shared/global tags intentionally keep their legacy save key for compatibility.
             private const string AddonKingdomTagsDataKey = "ukiol_api_kingdom_tags";
@@ -161,72 +180,146 @@ namespace Lous12.PoliticalWorld
                         continue;
                     }
 
-                    result.Add(new IdeologyInfo()
-                    {
-                        Id = node.Id ?? "",
-                        ParentId = node.ParentId ?? "",
-                        RootId = node.RootIdeologyId ?? "",
-                        NameKey = node.NameKey ?? node.Id ?? "",
-                        DisplayName = ResolveIdeologyDisplayName(node),
-                        Source = GetIdeologySource(node.Id),
-                        Tier = node.Tier,
-                        Tags = node.Tags == null
-                            ? new string[0]
-                            : (string[])node.Tags.Clone()
-                    });
+                    result.Add(BuildIdeologyInfo(node));
                 }
 
-                result.Sort(delegate(IdeologyInfo a, IdeologyInfo b)
+                SortIdeologyInfos(result);
+                return result;
+            }
+
+            public static IdeologyInfo GetIdeology(string ideologyId)
+            {
+                if (string.IsNullOrWhiteSpace(ideologyId))
                 {
-                    int rootCompare = string.CompareOrdinal(a.RootId ?? "", b.RootId ?? "");
-                    if (rootCompare != 0)
+                    return null;
+                }
+
+                EnsureIdeologyRegistry();
+                IdeologyNode node = GetIdeologyNode(ideologyId.Trim());
+                return node == null ? null : BuildIdeologyInfo(node);
+            }
+
+            public static List<IdeologyInfo> GetIdeologiesBySource(string source)
+            {
+                EnsureIdeologyRegistry();
+                string wanted = source == null ? "" : source.Trim();
+                List<IdeologyInfo> result = new List<IdeologyInfo>();
+                foreach (KeyValuePair<string, IdeologyNode> pair in IdeologyNodeRegistry)
+                {
+                    IdeologyNode node = pair.Value;
+                    if (
+                        node == null ||
+                        !string.Equals(GetIdeologySource(node.Id), wanted, StringComparison.Ordinal)
+                    )
                     {
-                        return rootCompare;
+                        continue;
                     }
-
-                    int tierCompare = a.Tier.CompareTo(b.Tier);
-                    if (tierCompare != 0)
-                    {
-                        return tierCompare;
-                    }
-
-                    return string.CompareOrdinal(a.DisplayName ?? "", b.DisplayName ?? "");
-                });
-
+                    result.Add(BuildIdeologyInfo(node));
+                }
+                SortIdeologyInfos(result);
                 return result;
             }
 
             public static List<IdeologyInfo> GetRootIdeologies()
             {
-                List<IdeologyInfo> all = GetIdeologies();
+                EnsureIdeologyRegistry();
                 List<IdeologyInfo> result = new List<IdeologyInfo>();
-                for (int i = 0; i < all.Count; i++)
+                foreach (KeyValuePair<string, IdeologyNode> pair in IdeologyNodeRegistry)
                 {
-                    if (all[i] != null && all[i].Tier == 0)
+                    IdeologyNode node = pair.Value;
+                    if (node != null && node.Tier == 0)
                     {
-                        result.Add(all[i]);
+                        result.Add(BuildIdeologyInfo(node));
                     }
                 }
+                SortIdeologyInfos(result);
                 return result;
             }
 
             public static List<IdeologyInfo> GetCurrentsForRoot(string rootId)
             {
-                List<IdeologyInfo> all = GetIdeologies();
+                EnsureIdeologyRegistry();
+                string wanted = rootId == null ? "" : rootId.Trim();
                 List<IdeologyInfo> result = new List<IdeologyInfo>();
-                for (int i = 0; i < all.Count; i++)
+                foreach (KeyValuePair<string, IdeologyNode> pair in IdeologyNodeRegistry)
                 {
-                    IdeologyInfo info = all[i];
+                    IdeologyNode node = pair.Value;
                     if (
-                        info != null &&
-                        info.Tier > 0 &&
-                        string.Equals(info.RootId, rootId, StringComparison.Ordinal)
+                        node != null &&
+                        node.Tier > 0 &&
+                        string.Equals(node.RootIdeologyId ?? "", wanted, StringComparison.Ordinal)
                     )
                     {
-                        result.Add(info);
+                        result.Add(BuildIdeologyInfo(node));
                     }
                 }
+                SortIdeologyInfos(result);
                 return result;
+            }
+
+            private static IdeologyInfo BuildIdeologyInfo(IdeologyNode node)
+            {
+                if (node == null)
+                {
+                    return null;
+                }
+                return new IdeologyInfo()
+                {
+                    Id = node.Id ?? "",
+                    ParentId = node.ParentId ?? "",
+                    RootId = node.RootIdeologyId ?? "",
+                    NameKey = node.NameKey ?? node.Id ?? "",
+                    DisplayName = ResolveIdeologyDisplayName(node),
+                    DescriptionKey = GetAddonIdeologyMetadata(AddonIdeologyDescriptionKeys, node.Id),
+                    Description = ResolveIdeologyDescription(node),
+                    Icon = GetAddonIdeologyMetadata(AddonIdeologyIcons, node.Id),
+                    SortOrder = GetAddonIdeologySortOrder(node.Id),
+                    Source = GetIdeologySource(node.Id),
+                    Tier = node.Tier,
+                    Tags = node.Tags == null
+                        ? new string[0]
+                        : (string[])node.Tags.Clone()
+                };
+            }
+
+            private static void SortIdeologyInfos(List<IdeologyInfo> result)
+            {
+                if (result == null)
+                {
+                    return;
+                }
+                result.Sort(delegate(IdeologyInfo a, IdeologyInfo b)
+                {
+                    int rootCompare = string.CompareOrdinal(
+                        a == null ? "" : (a.RootId ?? ""),
+                        b == null ? "" : (b.RootId ?? "")
+                    );
+                    if (rootCompare != 0)
+                    {
+                        return rootCompare;
+                    }
+
+                    int tierCompare = (a == null ? 0 : a.Tier).CompareTo(
+                        b == null ? 0 : b.Tier
+                    );
+                    if (tierCompare != 0)
+                    {
+                        return tierCompare;
+                    }
+
+                    int orderCompare = (a == null ? 0 : a.SortOrder).CompareTo(
+                        b == null ? 0 : b.SortOrder
+                    );
+                    if (orderCompare != 0)
+                    {
+                        return orderCompare;
+                    }
+
+                    return string.CompareOrdinal(
+                        a == null ? "" : (a.DisplayName ?? ""),
+                        b == null ? "" : (b.DisplayName ?? "")
+                    );
+                });
             }
 
             /// <summary>
@@ -284,6 +377,21 @@ namespace Lous12.PoliticalWorld
                 }
 
                 AddonIdeologySources[id] = definition.Source.Trim();
+                AddonIdeologyDisplayNames[id] = definition.DisplayName == null ? "" : definition.DisplayName.Trim();
+                AddonIdeologyDescriptionKeys[id] = definition.DescriptionKey == null ? "" : definition.DescriptionKey.Trim();
+                AddonIdeologyDescriptions[id] = definition.Description == null ? "" : definition.Description.Trim();
+                AddonIdeologyIcons[id] = definition.Icon == null ? "" : definition.Icon.Trim();
+                AddonIdeologySortOrders[id] = definition.SortOrder;
+                PoliticalWorldAPI.InternalSeedLocalizationFallback(
+                    definition.Source,
+                    nameKey,
+                    definition.DisplayName
+                );
+                PoliticalWorldAPI.InternalSeedLocalizationFallback(
+                    definition.Source,
+                    definition.DescriptionKey,
+                    definition.Description
+                );
                 IdeologyBehaviorRegistry.Remove(id);
 
                 if (registered.Tier == 0)
@@ -636,10 +744,11 @@ namespace Lous12.PoliticalWorld
                     return new string[0];
                 }
                 List<string> result = new List<string>();
+                HashSet<string> seen = new HashSet<string>(StringComparer.Ordinal);
                 for (int i = 0; i < values.Length; i++)
                 {
                     string value = values[i] == null ? "" : values[i].Trim();
-                    if (!string.IsNullOrEmpty(value) && !result.Contains(value))
+                    if (!string.IsNullOrEmpty(value) && seen.Add(value))
                     {
                         result.Add(value);
                     }
@@ -1546,33 +1655,47 @@ namespace Lous12.PoliticalWorld
                 );
             }
 
+            public static string CheckSetKingdomRulingParty(
+                Kingdom kingdom,
+                string partyId
+            )
+            {
+                if (kingdom == null || kingdom.data == null)
+                {
+                    return "invalid-kingdom";
+                }
+                if (!KingdomSupportsPartyMandate(kingdom))
+                {
+                    return "party-mandate-not-supported";
+                }
+                if (string.IsNullOrWhiteSpace(partyId))
+                {
+                    return "party-id-required";
+                }
+
+                PoliticalParty party = FindPartyById(kingdom, partyId.Trim());
+                if (party == null)
+                {
+                    return "party-not-found";
+                }
+                if (!party.Active)
+                {
+                    return "party-inactive";
+                }
+                return "ok";
+            }
+
             public static bool SetKingdomRulingParty(
                 Kingdom kingdom,
                 string partyId
             )
             {
-                if (
-                    kingdom == null ||
-                    !KingdomSupportsPartyMandate(kingdom)
-                )
+                if (CheckSetKingdomRulingParty(kingdom, partyId) != "ok")
                 {
                     return false;
                 }
 
-                PoliticalParty party = null;
-                List<PoliticalParty> active =
-                    GetPoliticalParties(kingdom);
-                for (int i = 0; i < active.Count; i++)
-                {
-                    if (
-                        active[i] != null &&
-                        active[i].Id == partyId
-                    )
-                    {
-                        party = active[i];
-                        break;
-                    }
-                }
+                PoliticalParty party = FindPartyById(kingdom, partyId.Trim());
                 if (party == null || !party.Active)
                 {
                     return false;
@@ -1694,6 +1817,46 @@ namespace Lous12.PoliticalWorld
                 return KingdomActions.Remove(id.Trim());
             }
 
+            public static KingdomActionInfo GetKingdomAction(
+                string id,
+                Kingdom kingdom
+            )
+            {
+                if (string.IsNullOrWhiteSpace(id))
+                {
+                    return null;
+                }
+                KingdomActionRegistration registration;
+                if (!KingdomActions.TryGetValue(id.Trim(), out registration) || registration == null)
+                {
+                    return null;
+                }
+                return BuildKingdomActionInfo(registration, kingdom);
+            }
+
+            public static List<KingdomActionInfo> GetKingdomActionsBySource(
+                string source,
+                Kingdom kingdom
+            )
+            {
+                string wanted = source == null ? "" : source.Trim();
+                List<KingdomActionInfo> result = new List<KingdomActionInfo>();
+                foreach (KeyValuePair<string, KingdomActionRegistration> pair in KingdomActions)
+                {
+                    KingdomActionRegistration registration = pair.Value;
+                    if (
+                        registration == null ||
+                        !string.Equals(registration.Source ?? "", wanted, StringComparison.Ordinal)
+                    )
+                    {
+                        continue;
+                    }
+                    result.Add(BuildKingdomActionInfo(registration, kingdom));
+                }
+                SortKingdomActionInfos(result);
+                return result;
+            }
+
             public static List<KingdomActionInfo> GetKingdomActions(Kingdom kingdom)
             {
                 List<KingdomActionInfo> result = new List<KingdomActionInfo>();
@@ -1704,54 +1867,26 @@ namespace Lous12.PoliticalWorld
                     {
                         continue;
                     }
-
-                    bool enabled = kingdom != null;
-                    if (enabled && registration.Condition != null)
-                    {
-                        try
-                        {
-                            enabled = registration.Condition(kingdom);
-                        }
-                        catch (Exception exception)
-                        {
-                            enabled = false;
-                            LogWarning(
-                                "ScenarioBridge action condition failed for " +
-                                registration.Id + ": " + exception.Message
-                            );
-                        }
-                    }
-
-                    result.Add(new KingdomActionInfo()
-                    {
-                        Id = registration.Id,
-                        Category = registration.Category,
-                        NameKey = registration.NameKey,
-                        DescriptionKey = registration.DescriptionKey,
-                        DisplayName = ResolveActionLocale(registration.NameKey, registration.DisplayName),
-                        Description = ResolveActionLocale(registration.DescriptionKey, registration.Description),
-                        Source = registration.Source,
-                        Icon = registration.Icon,
-                        SortOrder = registration.SortOrder,
-                        Enabled = enabled
-                    });
+                    result.Add(BuildKingdomActionInfo(registration, kingdom));
                 }
 
-                result.Sort(delegate(KingdomActionInfo a, KingdomActionInfo b)
-                {
-                    int categoryCompare = string.CompareOrdinal(a.Category ?? "", b.Category ?? "");
-                    if (categoryCompare != 0)
-                    {
-                        return categoryCompare;
-                    }
-                    int orderCompare = a.SortOrder.CompareTo(b.SortOrder);
-                    if (orderCompare != 0)
-                    {
-                        return orderCompare;
-                    }
-                    return string.CompareOrdinal(a.DisplayName ?? "", b.DisplayName ?? "");
-                });
+                SortKingdomActionInfos(result);
                 return result;
+            }
+
+            public static bool CanExecuteKingdomAction(string id, Kingdom kingdom)
+            {
+                if (string.IsNullOrWhiteSpace(id) || kingdom == null)
+                {
+                    return false;
+                }
+
+                KingdomActionRegistration registration;
+                if (!KingdomActions.TryGetValue(id.Trim(), out registration) || registration == null)
+                {
+                    return false;
+                }
+                return EvaluateKingdomActionCondition(registration, kingdom);
             }
 
             public static bool ExecuteKingdomAction(string id, Kingdom kingdom)
@@ -1767,23 +1902,9 @@ namespace Lous12.PoliticalWorld
                     return false;
                 }
 
-                if (registration.Condition != null)
+                if (!EvaluateKingdomActionCondition(registration, kingdom))
                 {
-                    try
-                    {
-                        if (!registration.Condition(kingdom))
-                        {
-                            return false;
-                        }
-                    }
-                    catch (Exception exception)
-                    {
-                        LogWarning(
-                            "ScenarioBridge action condition failed for " +
-                            registration.Id + ": " + exception.Message
-                        );
-                        return false;
-                    }
+                    return false;
                 }
 
                 try
@@ -1801,23 +1922,90 @@ namespace Lous12.PoliticalWorld
                 }
             }
 
+            private static KingdomActionInfo BuildKingdomActionInfo(
+                KingdomActionRegistration registration,
+                Kingdom kingdom
+            )
+            {
+                if (registration == null)
+                {
+                    return null;
+                }
+                return new KingdomActionInfo()
+                {
+                    Id = registration.Id,
+                    Category = registration.Category,
+                    NameKey = registration.NameKey,
+                    DescriptionKey = registration.DescriptionKey,
+                    DisplayName = ResolveActionLocale(registration.NameKey, registration.DisplayName),
+                    Description = ResolveActionLocale(registration.DescriptionKey, registration.Description),
+                    Source = registration.Source,
+                    Icon = registration.Icon,
+                    SortOrder = registration.SortOrder,
+                    Enabled = kingdom != null && EvaluateKingdomActionCondition(registration, kingdom)
+                };
+            }
+
+            private static bool EvaluateKingdomActionCondition(
+                KingdomActionRegistration registration,
+                Kingdom kingdom
+            )
+            {
+                if (registration == null || kingdom == null)
+                {
+                    return false;
+                }
+                if (registration.Condition == null)
+                {
+                    return true;
+                }
+                try
+                {
+                    return registration.Condition(kingdom);
+                }
+                catch (Exception exception)
+                {
+                    LogWarning(
+                        "ScenarioBridge action condition failed for " +
+                        registration.Id + ": " + exception.Message
+                    );
+                    return false;
+                }
+            }
+
+            private static void SortKingdomActionInfos(List<KingdomActionInfo> result)
+            {
+                if (result == null)
+                {
+                    return;
+                }
+                result.Sort(delegate(KingdomActionInfo a, KingdomActionInfo b)
+                {
+                    int categoryCompare = string.CompareOrdinal(
+                        a == null ? "" : (a.Category ?? ""),
+                        b == null ? "" : (b.Category ?? "")
+                    );
+                    if (categoryCompare != 0)
+                    {
+                        return categoryCompare;
+                    }
+                    int orderCompare = (a == null ? 0 : a.SortOrder).CompareTo(
+                        b == null ? 0 : b.SortOrder
+                    );
+                    if (orderCompare != 0)
+                    {
+                        return orderCompare;
+                    }
+                    return string.CompareOrdinal(
+                        a == null ? "" : (a.DisplayName ?? ""),
+                        b == null ? "" : (b.DisplayName ?? "")
+                    );
+                });
+            }
+
             private static string ResolveActionLocale(string key, string fallback)
             {
-                if (!string.IsNullOrWhiteSpace(key))
-                {
-                    try
-                    {
-                        string value = NeoModLoader.General.LM.Get(key.Trim());
-                        if (!string.IsNullOrEmpty(value) && value != key)
-                        {
-                            return value;
-                        }
-                    }
-                    catch
-                    {
-                    }
-                }
-                return fallback ?? "";
+                return PoliticalWorldAPI.ResolveLocalization(key, fallback ?? "");
             }
 
             private static PartyInfo BuildPartyInfo(
@@ -2181,19 +2369,53 @@ namespace Lous12.PoliticalWorld
                 string key = string.IsNullOrEmpty(node.NameKey)
                     ? node.Id
                     : node.NameKey;
-                if (string.IsNullOrEmpty(key))
+                string fallback = GetAddonIdeologyMetadata(
+                    AddonIdeologyDisplayNames,
+                    node.Id
+                );
+                if (string.IsNullOrWhiteSpace(fallback))
+                {
+                    fallback = key;
+                }
+                return PoliticalWorldAPI.ResolveLocalization(key, fallback);
+            }
+
+            private static string ResolveIdeologyDescription(IdeologyNode node)
+            {
+                if (node == null) return "";
+                string key = GetAddonIdeologyMetadata(
+                    AddonIdeologyDescriptionKeys,
+                    node.Id
+                );
+                string fallback = GetAddonIdeologyMetadata(
+                    AddonIdeologyDescriptions,
+                    node.Id
+                );
+                return PoliticalWorldAPI.ResolveLocalization(key, fallback);
+            }
+
+            private static string GetAddonIdeologyMetadata(
+                Dictionary<string, string> source,
+                string ideologyId
+            )
+            {
+                if (source == null || string.IsNullOrEmpty(ideologyId))
                 {
                     return "";
                 }
+                string value;
+                return source.TryGetValue(ideologyId, out value)
+                    ? (value ?? "")
+                    : "";
+            }
 
-                try
-                {
-                    return NeoModLoader.General.LM.Get(key);
-                }
-                catch
-                {
-                    return key;
-                }
+            private static int GetAddonIdeologySortOrder(string ideologyId)
+            {
+                if (string.IsNullOrEmpty(ideologyId)) return 0;
+                int value;
+                return AddonIdeologySortOrders.TryGetValue(ideologyId, out value)
+                    ? value
+                    : 0;
             }
         }
     }

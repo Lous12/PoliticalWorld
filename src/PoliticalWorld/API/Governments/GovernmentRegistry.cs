@@ -16,12 +16,17 @@ namespace Lous12.PoliticalWorld
             public string Id;
             public string NameKey;
             public string DisplayName;
+            public string DescriptionKey;
+            public string Description;
+            public string Icon;
+            public int SortOrder;
             public GovernmentArchetype BaseArchetype;
             public string[] Tags;
         }
 
         private static readonly Dictionary<string, RegisteredGovernment> RegisteredGovernments =
             new Dictionary<string, RegisteredGovernment>(StringComparer.Ordinal);
+        private static List<string> _sortedGovernmentIdsCache;
 
         public static ValidationResult ValidateGovernment(string addonId, GovernmentDefinition definition)
         {
@@ -81,9 +86,16 @@ namespace Lous12.PoliticalWorld
                 Id = id,
                 NameKey = definition.NameKey == null ? "" : definition.NameKey.Trim(),
                 DisplayName = definition.DisplayName == null ? "" : definition.DisplayName.Trim(),
+                DescriptionKey = definition.DescriptionKey == null ? "" : definition.DescriptionKey.Trim(),
+                Description = definition.Description == null ? "" : definition.Description.Trim(),
+                Icon = definition.Icon == null ? "" : definition.Icon.Trim(),
+                SortOrder = definition.SortOrder,
                 BaseArchetype = definition.BaseArchetype,
                 Tags = NormalizeGovernmentTags(definition.Tags)
             };
+            InternalSeedLocalizationFallback(owner, definition.NameKey, definition.DisplayName);
+            InternalSeedLocalizationFallback(owner, definition.DescriptionKey, definition.Description);
+            _sortedGovernmentIdsCache = null;
             InternalRecordGovernmentRegistered(owner, id);
             return true;
         }
@@ -101,12 +113,24 @@ namespace Lous12.PoliticalWorld
 
         public static bool HasGovernmentTag(string governmentId, string tag)
         {
-            if (string.IsNullOrWhiteSpace(tag)) return false;
-            string wanted = tag.Trim();
-            string[] tags = GetGovernmentTags(governmentId);
-            for (int i = 0; i < tags.Length; i++)
+            if (string.IsNullOrWhiteSpace(governmentId) || string.IsNullOrWhiteSpace(tag))
             {
-                if (string.Equals(tags[i], wanted, StringComparison.OrdinalIgnoreCase)) return true;
+                return false;
+            }
+            RegisteredGovernment value;
+            if (!RegisteredGovernments.TryGetValue(governmentId.Trim(), out value) ||
+                value == null ||
+                value.Tags == null)
+            {
+                return false;
+            }
+            string wanted = tag.Trim();
+            for (int i = 0; i < value.Tags.Length; i++)
+            {
+                if (string.Equals(value.Tags[i], wanted, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
             }
             return false;
         }
@@ -145,13 +169,42 @@ namespace Lous12.PoliticalWorld
 
         internal static List<GovernmentInfo> InternalGetRegisteredGovernments()
         {
-            List<GovernmentInfo> result = new List<GovernmentInfo>();
-            foreach (KeyValuePair<string, RegisteredGovernment> pair in RegisteredGovernments)
+            if (_sortedGovernmentIdsCache == null)
             {
-                GovernmentInfo info = ConvertRegisteredGovernment(pair.Value);
+                _sortedGovernmentIdsCache = new List<string>(RegisteredGovernments.Keys);
+                _sortedGovernmentIdsCache.Sort(StringComparer.Ordinal);
+            }
+
+            List<GovernmentInfo> result = new List<GovernmentInfo>();
+            for (int i = 0; i < _sortedGovernmentIdsCache.Count; i++)
+            {
+                RegisteredGovernment value;
+                if (!RegisteredGovernments.TryGetValue(_sortedGovernmentIdsCache[i], out value))
+                {
+                    continue;
+                }
+                GovernmentInfo info = ConvertRegisteredGovernment(value);
                 if (info != null) result.Add(info);
             }
-            result.Sort((a, b) => string.Compare(a == null ? "" : a.Id, b == null ? "" : b.Id, StringComparison.Ordinal));
+            return result;
+        }
+
+        internal static List<GovernmentInfo> InternalGetRegisteredGovernmentsByOwner(
+            string addonId
+        )
+        {
+            string wanted = addonId == null ? "" : addonId.Trim();
+            List<GovernmentInfo> result = new List<GovernmentInfo>();
+            List<GovernmentInfo> all = InternalGetRegisteredGovernments();
+            for (int i = 0; i < all.Count; i++)
+            {
+                GovernmentInfo info = all[i];
+                if (info != null &&
+                    string.Equals(info.Source ?? "", wanted, StringComparison.Ordinal))
+                {
+                    result.Add(info);
+                }
+            }
             return result;
         }
 
@@ -200,6 +253,10 @@ namespace Lous12.PoliticalWorld
                 Id = value.Id,
                 NameKey = value.NameKey,
                 DisplayName = ResolveGovernmentDisplayName(value),
+                DescriptionKey = value.DescriptionKey,
+                Description = ResolveLocalization(value.DescriptionKey, value.Description),
+                Icon = value.Icon,
+                SortOrder = value.SortOrder,
                 BaseArchetype = value.BaseArchetype,
                 Source = value.Owner,
                 IsCustom = true,
@@ -210,37 +267,22 @@ namespace Lous12.PoliticalWorld
         private static string ResolveGovernmentDisplayName(RegisteredGovernment value)
         {
             if (value == null) return "";
-            if (!string.IsNullOrWhiteSpace(value.NameKey))
-            {
-                try
-                {
-                    string localized = NeoModLoader.General.LM.Get(value.NameKey);
-                    if (!string.IsNullOrWhiteSpace(localized) && !string.Equals(localized, value.NameKey, StringComparison.Ordinal))
-                    {
-                        return localized;
-                    }
-                }
-                catch { }
-            }
-            if (!string.IsNullOrWhiteSpace(value.DisplayName)) return value.DisplayName;
-            if (!string.IsNullOrWhiteSpace(value.NameKey)) return value.NameKey;
-            return value.Id ?? "";
+            string fallback = !string.IsNullOrWhiteSpace(value.DisplayName)
+                ? value.DisplayName
+                : (!string.IsNullOrWhiteSpace(value.NameKey) ? value.NameKey : (value.Id ?? ""));
+            return ResolveLocalization(value.NameKey, fallback);
         }
 
         private static string[] NormalizeGovernmentTags(string[] values)
         {
             if (values == null || values.Length == 0) return new string[0];
             List<string> result = new List<string>();
+            HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < values.Length; i++)
             {
                 string value = values[i] == null ? "" : values[i].Trim();
-                if (string.IsNullOrEmpty(value)) continue;
-                bool exists = false;
-                for (int j = 0; j < result.Count; j++)
-                {
-                    if (string.Equals(result[j], value, StringComparison.OrdinalIgnoreCase)) { exists = true; break; }
-                }
-                if (!exists) result.Add(value);
+                if (string.IsNullOrEmpty(value) || !seen.Add(value)) continue;
+                result.Add(value);
             }
             return result.ToArray();
         }

@@ -1,4 +1,4 @@
-# Event Bus and Rare Political Events — API 1.6
+# Event Bus and Rare Political Events — API 1.7
 
 ## Why
 
@@ -16,7 +16,7 @@ PoliticalWorldAPI.Subscribe(
 
 The handler receives `PoliticalEventData`: `EventId`, `Kingdom`, old/new values, PartyId, Actor, names, SourceAddonId, Category, Year, Text, and EventKey.
 
-Known API 1.6 events:
+Known API 1.7 events:
 
 - `kingdom.ideology.changed`
 - `kingdom.current.changed`
@@ -54,3 +54,19 @@ PoliticalWorldAPI.RegisterRarePoliticalEvent(AddonId,
 `ChancePermille` is 0..1000: 30 = 3%. The registry runs from the existing yearly political pipeline and does not create an addon `Update()`.
 
 Cooldown is stored per kingdom/event through Political World's namespaced state.
+
+
+## Manual rare-event execution — API 1.7
+
+Scenario/director tools can explicitly execute a registered rare political event without bypassing Political World's public API:
+
+```csharp
+if (PoliticalWorldAPI.CanExecuteRarePoliticalEvent(eventId, kingdom))
+{
+    PoliticalWorldAPI.ExecuteRarePoliticalEvent(eventId, kingdom);
+}
+```
+
+Manual execution skips the random chance, normal check interval and current cooldown because the caller explicitly requested the event. The registered `Condition` is still evaluated. A successful execution records the current world year as the last fire year so the normal yearly pipeline respects the event cooldown afterwards.
+
+Capability: `political-event.rare.execute`.

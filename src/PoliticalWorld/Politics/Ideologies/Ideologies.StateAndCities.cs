@@ -1357,16 +1357,27 @@ namespace Lous12.PoliticalWorld
             string ideology
         )
         {
+            if (string.IsNullOrEmpty(ideology))
+            {
+                return LM.Get("ukiol_ideology_none");
+            }
+
+            PoliticalWorldAPI.IdeologyInfo info =
+                PoliticalWorldAPI.GetIdeology(ideology);
+            if (
+                info != null &&
+                !string.IsNullOrEmpty(info.DisplayName)
+            )
+            {
+                return info.DisplayName;
+            }
+
             if (!IsValidIdeology(ideology))
             {
                 return LM.Get("ukiol_ideology_none");
             }
 
-            IdeologyNode node = GetIdeologyNode(ideology);
-            string key = node != null && !string.IsNullOrEmpty(node.NameKey)
-                ? node.NameKey
-                : ideology;
-            return LM.Get(key);
+            return ideology;
         }
 
         private static string GetIdeologySupportColor(

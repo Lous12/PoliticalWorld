@@ -4,119 +4,177 @@
 
 <h1 align="center">Political World</h1>
 
-<p align="center"><strong>Political framework & modding SDK for WorldBox</strong></p>
+<p align="center"><strong>Play politics. Build anything.</strong></p>
+
+<p align="center">
+  A WorldBox political expansion and an open addon framework for creators.
+</p>
 
 <p align="center">
   <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3780484869"><strong>Steam Workshop</strong></a> ·
   <a href="en/README.md"><strong>English Docs</strong></a> ·
   <a href="ru/README.md"><strong>Русская документация</strong></a> ·
+  <a href="https://github.com/Lous12/PoliticalWorld/discussions"><strong>Discussions</strong></a> ·
   <a href="en/community-addons.md"><strong>Community Addons</strong></a> ·
   <a href="https://github.com/Lous12/PoliticalWorld"><strong>GitHub</strong></a>
 </p>
 
 ---
 
-## Play Political World
+## Two sides of one project
 
-Political World adds a lightweight political layer to WorldBox: ideologies, parties, governments, elections, councils, crises, international blocs, summits, war-related politics and a Political Map.
+### 🎮 Political World for players
+
+Political World adds a lightweight political layer to WorldBox:
+
+- ideologies and ideological currents;
+- parties and party leaders;
+- governments and political systems;
+- elections, councils and leadership changes;
+- stability, crises, coups, rebellions and revolutions;
+- blocs and vanilla Alliance integration;
+- physical ruler summits;
+- war preparation and war exhaustion;
+- Political Map modes.
 
 **[Install Political World from Steam Workshop →](https://steamcommunity.com/sharedfiles/filedetails/?id=3780484869)**
 
-Starting with 1.7, Political World is also a **public framework for other modders**. Addons can extend the political simulation through a documented API instead of editing the core mod.
+### 🧩 PoliticalWorldAPI for creators
+
+Political World is also an open addon framework.
+
+The public API provides reusable systems for registration, localization fallback, data, tags, events, conditions, effects, actions, diagnostics and Political World gameplay integration.
+
+The goal is bigger than political addons:
+
+> **Political World should not decide what kind of mod you are allowed to create.**
 
 ```text
 WorldBox + NeoModLoader
         ↓
-Political World Core
+Political World
         ↓
-PoliticalWorldAPI 1.6
+PoliticalWorldAPI 1.9
         ↓
-Your addon / community mod
+Your addon
 ```
 
-## Start creating
+A creator can start with politics today and increasingly use the same framework for fantasy, religion, economy, events, tools, character systems and other ideas as the general API expands.
 
-You do not need to begin with a huge project.
+**[Read the framework vision →](en/FRAMEWORK_VISION.md)**  
+**[Видение фреймворка →](ru/FRAMEWORK_VISION.md)**
 
-| I want to... | Start here |
-|---|---|
-| Make my first Political World addon | [First addon in 10 minutes](en/GETTING_STARTED.md) |
-| Сделать первый аддон на русском | [Первый аддон за 10 минут](ru/GETTING_STARTED.md) |
-| Add an ideology | [Ideologies](en/ideologies.md) |
-| Add a government | [Governments](en/governments.md) |
-| React to political events | [Political events](en/political-events.md) |
-| Make a standalone WorldBox/NML mod | [Standalone NML starter](en/standalone-nml-starter.md) |
-| Create with ChatGPT / Claude / Codex | [Using AI](en/using-ai.md) |
+## Localization should not block creativity
 
-## Community Addons
+An addon does not need to translate every language before it can work.
 
-Political World is built so other people can create on top of it.
+If a player uses Russian but an addon only provides English text, PoliticalWorldAPI can fall back to readable English instead of treating missing translation as incompatibility.
 
-The community catalog is **curated**: an addon is added to the verified list after it has been checked by the Political World maintainer on a supported version.
+The preferred order is:
 
-At the moment there are no verified community addons yet — the catalog is ready for the first ones.
+```text
+current-language translation
+        ↓
+registered/default localization
+        ↓
+English fallback
+        ↓
+DisplayName / Description
+        ↓
+safe readable ID
+```
 
-**[Community Addons — English →](en/community-addons.md)**  
-**[Аддоны сообщества — Русский →](ru/community-addons.md)**
-
-Small projects are welcome too. A single ideology, one event, or a tiny experiment can be listed alongside large overhauls.
+Translation remains welcome — it simply is not a barrier to making a working addon.
 
 ## What can you build?
 
-Political World can be used for tiny learning projects or large overhauls.
+Start tiny or build a complete ecosystem.
 
-- one new ideology or ideological branch;
-- custom governments;
-- political event packs;
-- party and election extensions;
-- fantasy politics systems;
+Today the public API already supports political extensions, Actions, Rare Events, addon data/tags, reusable Conditions/Effects, localization and cross-addon event listening.
+
+The framework direction is intended to support projects such as:
+
+- ideology or government packs;
+- fantasy systems;
+- religions and cults;
+- economy and trade;
+- disease/disaster mechanics;
+- character and dynasty systems;
 - scenario/director tools;
-- ideology packs based on fictional settings;
-- large political overhauls that use Political World as a dependency;
-- completely standalone NeoModLoader mods using the included NML starter and cookbook.
+- creator utilities;
+- integrations between independent addons.
 
-**[See the full list of things you can build →](en/what-you-can-build.md)**  
-**[Что можно создавать — полная страница →](ru/what-you-can-build.md)**
+Not every example above is a built-in Political World feature yet. They represent what the general framework is being designed to enable.
 
-## For AI-assisted development
+**[See what you can build →](en/what-you-can-build.md)**  
+**[Что можно создавать →](ru/what-you-can-build.md)**
 
-The repository is intentionally structured so coding assistants can understand it without reading the entire codebase first.
+## Start creating
 
-Start with:
+| I want to... | Start here |
+|---|---|
+| Make my first addon | [First addon in 10 minutes](en/GETTING_STARTED.md) |
+| Сделать первый аддон | [Первый аддон за 10 минут](ru/GETTING_STARTED.md) |
+| Understand the framework direction | [Framework vision](en/FRAMEWORK_VISION.md) |
+| Add an ideology | [Ideologies](en/ideologies.md) |
+| Add a government | [Governments](en/governments.md) |
+| Create Actions / Events | [Political events](en/political-events.md) |
+| Build a standalone NML mod | [Standalone NML starter](en/standalone-nml-starter.md) |
+| Create with an AI assistant | [Using AI](en/using-ai.md) |
 
-- [`AI_START_HERE.md`](../AI_START_HERE.md)
-- [Using AI — English](en/using-ai.md)
-- [Разработка с ИИ — Русский](ru/using-ai.md)
+## Creator philosophy
 
-Recommended instruction for an AI assistant:
+Political World is being built around a few rules:
+
+- **Public API first.** First-party addons should follow the same rules as community addons.
+- **No mandatory localization.** Missing translations should fall back gracefully.
+- **No required per-frame polling.** Prefer events and registered behavior.
+- **No internal-class dependency.** `Main`, `ScenarioBridge` and internals are not the public contract.
+- **Small projects matter.** One event can be a real addon.
+- **Do not make us the bottleneck.** The framework should expose primitives, not require the maintainer to implement every possible system.
+
+## Community
+
+Political World has a community space on GitHub Discussions.
+
+Creators can:
+
+- ask for modding help;
+- show WIP projects;
+- request API capabilities;
+- submit addons for compatibility testing;
+- share finished projects.
+
+**[Open Discussions →](https://github.com/Lous12/PoliticalWorld/discussions)**  
+**[Community Addons →](en/community-addons.md)**
+
+Verified community addons are added to the catalog after compatibility testing on a supported Political World setup.
+
+## AI-assisted development
+
+The repository is structured so coding assistants can start from documentation instead of guessing how the core works.
+
+Recommended instruction:
 
 ```text
-Read Political World's AI_START_HERE.md and the relevant API docs.
+Read Political World's AI_START_HERE.md and relevant API docs.
 Use only the public PoliticalWorldAPI for Political World addons.
 Do not depend on internal Main or ScenarioBridge classes.
-Use namespaced IDs and validate API capabilities.
+Use namespaced IDs, capability checks, events and addon-private data.
+If the API lacks a capability, report the missing capability instead of bypassing it.
 ```
 
-## Support Political World
-
-Political World is free and open-source. If you want to support its development:
-
-- **[DonationAlerts](https://www.donationalerts.com/r/lous12)**
-- **[DALink](https://dalink.to/lous12)**
-
-Поддержать разработку:
-
-- **[DonationAlerts](https://www.donationalerts.com/r/lous12)**
-- **[DALink](https://dalink.to/lous12)**
-
-## Open for everyone
+## Open source
 
 Political World is released under the **MIT License**.
 
-People may study the source, fork the project, modify it, build addons, create their own versions, learn from the examples, and continue the project if development ever stops — while preserving the required MIT license/copyright notice.
+You may study the source, fork it, build addons, create tools and continue development, while preserving the required MIT copyright/license notice for MIT-covered code.
 
-> **Give people a place to learn by creating. Start small, break things, understand them, fix them, and make something that is yours.**
+## Support
+
+- **[DonationAlerts](https://www.donationalerts.com/r/lous12)**
+- **[DALink](https://dalink.to/lous12)**
 
 ---
 
-**Political World 1.7 · Public API 1.6 · WorldBox PC 0.51.2 · NeoModLoader 1.2.0.1**
+**Political World 1.7 Public Beta · PoliticalWorldAPI 1.9 · WorldBox PC 0.51.2 · NeoModLoader 1.2.0.1**

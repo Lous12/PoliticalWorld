@@ -600,7 +600,7 @@ namespace Lous12.PoliticalWorld
                 c < cities.Count && count < LeaderSubjectLifespanSampleLimit;
                 c++)
             {
-                List<Actor> units = GetCityUnitsSafe(cities[c]);
+                List<Actor> units = GetCityUnitsSafe(cities[c], LeaderSubjectLifespanSampleLimit - count);
                 for (int i = 0;
                     i < units.Count && count < LeaderSubjectLifespanSampleLimit;
                     i++)
@@ -2772,24 +2772,36 @@ namespace Lous12.PoliticalWorld
             City city
         )
         {
+            return GetCityUnitsSafe(city, int.MaxValue);
+        }
+
+        /// <summary>
+        /// Reads at most maxItems actors from one city. Several political
+        /// leader/candidate searches intentionally inspect only a small sample;
+        /// capping the copy here prevents a city with thousands of spawned
+        /// humans from allocating/scanning the full population first.
+        /// </summary>
+        private static List<Actor> GetCityUnitsSafe(
+            City city,
+            int maxItems
+        )
+        {
             List<Actor> result = new List<Actor>();
 
-            if (city == null)
+            if (city == null || maxItems <= 0)
             {
                 return result;
             }
 
             object collection = GetMemberValue(
                 city,
-                "units",
-                "_units",
-                "citizens",
-                "_citizens"
+                KingdomUnitCollectionMemberNames
             );
 
             AddActorsFromCollection(
                 collection,
-                result
+                result,
+                maxItems
             );
 
             return result;
@@ -3318,6 +3330,16 @@ namespace Lous12.PoliticalWorld
                 // no explicit Reformer/Militarist/Diplomat state course.
                 // A null course simply means no extra course resource delta.
 
+                // These values are kingdom-wide and do not change while
+                // iterating its cities. Compute them once per economy tick.
+                string ideology = GetStateIdeology(kingdom);
+                int ideologySupport = IsValidIdeology(ideology)
+                    ? GetKingdomIdeologySupport(kingdom, ideology)
+                    : 0;
+                IdeologyBehaviorProfile behavior = ideologySupport >= 45
+                    ? GetIdeologyBehaviorProfile(kingdom)
+                    : null;
+
                 List<City> cities = GetCitiesSafe(kingdom);
 
                 for (int cityIndex = 0;
@@ -3357,15 +3379,8 @@ namespace Lous12.PoliticalWorld
                         );
                     }
 
-                    string ideology = GetStateIdeology(kingdom);
-                    int ideologySupport = IsValidIdeology(ideology)
-                        ? GetKingdomIdeologySupport(kingdom, ideology)
-                        : 0;
-                    if (ideologySupport >= 45)
+                    if (behavior != null)
                     {
-                        IdeologyBehaviorProfile behavior =
-                            GetIdeologyBehaviorProfile(kingdom);
-
                         if (behavior.Market >= 70)
                         {
                             TryChangeCityResource(city, "gold", 1);
@@ -3543,22 +3558,9 @@ namespace Lous12.PoliticalWorld
                 return result;
             }
 
-            string[] preferredMemberNames =
-            {
-                "list",
-                "_list",
-                "list_civs",
-                "list_civ",
-                "list_all",
-                "kingdoms",
-                "_kingdoms",
-                "all_kingdoms",
-                "civs"
-            };
-
             FindCollectionMembers(
                 manager,
-                preferredMemberNames,
+                KingdomManagerCollectionMemberNames,
                 value => AddKingdomsFromCollection(
                     value,
                     result
@@ -3584,18 +3586,9 @@ namespace Lous12.PoliticalWorld
                 return result;
             }
 
-            string[] preferredMemberNames =
-            {
-                "cities",
-                "_cities",
-                "list_cities",
-                "city_list",
-                "settlements"
-            };
-
             FindCollectionMembers(
                 kingdom,
-                preferredMemberNames,
+                KingdomCityCollectionMemberNames,
                 value => AddCitiesFromCollection(
                     value,
                     result
@@ -3621,18 +3614,9 @@ namespace Lous12.PoliticalWorld
                 return result;
             }
 
-            string[] preferredMemberNames =
-            {
-                "units",
-                "_units",
-                "list_units",
-                "actors",
-                "citizens"
-            };
-
             FindCollectionMembers(
                 kingdom,
-                preferredMemberNames,
+                KingdomUnitCollectionMemberNames,
                 value => AddActorsFromCollection(
                     value,
                     result
@@ -3758,23 +3742,30 @@ namespace Lous12.PoliticalWorld
 
         private static bool AddActorsFromCollection(
             object collection,
-            List<Actor> result
+            List<Actor> result,
+            int maxItems = int.MaxValue
         )
         {
             return AddItemsFromCollection(
                 collection,
-                result
+                result,
+                maxItems,
+                true
             );
         }
 
         private static bool AddItemsFromCollection<T>(
             object collection,
-            List<T> result
+            List<T> result,
+            int maxItems = int.MaxValue,
+            bool useHashSet = false
         ) where T : class
         {
             if (
                 collection == null ||
-                collection is string
+                collection is string ||
+                result == null ||
+                maxItems <= 0
             )
             {
                 return false;
@@ -3789,6 +3780,11 @@ namespace Lous12.PoliticalWorld
             }
 
             bool foundAny = false;
+            HashSet<T> seen = useHashSet
+                ? (result.Count == 0
+                    ? new HashSet<T>()
+                    : new HashSet<T>(result))
+                : null;
 
             foreach (object item in enumerable)
             {
@@ -3799,12 +3795,18 @@ namespace Lous12.PoliticalWorld
                     continue;
                 }
 
-                if (!result.Contains(typedItem))
+                foundAny = true;
+                bool shouldAdd = seen != null
+                    ? seen.Add(typedItem)
+                    : !result.Contains(typedItem);
+                if (shouldAdd)
                 {
                     result.Add(typedItem);
+                    if (result.Count >= maxItems)
+                    {
+                        break;
+                    }
                 }
-
-                foundAny = true;
             }
 
             return foundAny;
@@ -3851,12 +3853,11 @@ namespace Lous12.PoliticalWorld
                 return null;
             }
 
-            string[] names = new string[] { "kingdom", "_kingdom" };
             for (Type current = type; current != null; current = current.BaseType)
             {
-                for (int i = 0; i < names.Length; i++)
+                for (int i = 0; i < KingdomAccessorMemberNames.Length; i++)
                 {
-                    FieldInfo field = current.GetField(names[i], MemberFlags);
+                    FieldInfo field = current.GetField(KingdomAccessorMemberNames[i], MemberFlags);
                     if (field != null)
                     {
                         KingdomFieldAccessorCache[type] = field;
@@ -3870,7 +3871,7 @@ namespace Lous12.PoliticalWorld
                         }
                     }
 
-                    PropertyInfo property = current.GetProperty(names[i], MemberFlags);
+                    PropertyInfo property = current.GetProperty(KingdomAccessorMemberNames[i], MemberFlags);
                     if (
                         property != null &&
                         property.GetIndexParameters().Length == 0
@@ -3975,14 +3976,12 @@ namespace Lous12.PoliticalWorld
 
             object cityData = GetMemberValue(
                 city,
-                "data",
-                "_data"
+                CityDataMemberNames
             );
 
             object storage = GetMemberValue(
                 cityData,
-                "storage",
-                "_storage"
+                CityStorageMemberNames
             );
 
             if (storage == null)
@@ -3990,58 +3989,78 @@ namespace Lous12.PoliticalWorld
                 return false;
             }
 
-            MethodInfo[] methods = storage
-                .GetType()
-                .GetMethods(MemberFlags);
-
-            for (int i = 0; i < methods.Length; i++)
+            Type storageType = storage.GetType();
+            MethodInfo method;
+            if (!CityStorageChangeMethodCache.TryGetValue(storageType, out method))
             {
-                MethodInfo method = methods[i];
-
-                if (method.Name != "change")
+                if (CityStorageChangeMethodMissingCache.Contains(storageType))
                 {
-                    continue;
+                    return false;
                 }
 
-                ParameterInfo[] parameters =
-                    method.GetParameters();
-
-                if (
-                    parameters.Length != 2 ||
-                    parameters[0].ParameterType !=
-                        typeof(string)
-                )
+                MethodInfo[] methods = storageType.GetMethods(MemberFlags);
+                for (int i = 0; i < methods.Length; i++)
                 {
-                    continue;
+                    MethodInfo candidate = methods[i];
+                    if (candidate == null || candidate.Name != "change")
+                    {
+                        continue;
+                    }
+
+                    ParameterInfo[] parameters = candidate.GetParameters();
+                    if (
+                        parameters.Length != 2 ||
+                        parameters[0].ParameterType != typeof(string)
+                    )
+                    {
+                        continue;
+                    }
+
+                    // Validate that an int delta can be converted to the second
+                    // parameter before caching this overload.
+                    try
+                    {
+                        Convert.ChangeType(amount, parameters[1].ParameterType);
+                        method = candidate;
+                        CityStorageChangeMethodCache[storageType] = candidate;
+                        break;
+                    }
+                    catch
+                    {
+                    }
                 }
 
-                object convertedAmount = null;
-
-                try
+                if (method == null)
                 {
-                    convertedAmount = Convert.ChangeType(
-                        amount,
-                        parameters[1].ParameterType
-                    );
-
-                    method.Invoke(
-                        storage,
-                        new object[]
-                        {
-                            resourceId,
-                            convertedAmount
-                        }
-                    );
-
-                    return true;
-                }
-                catch
-                {
-                    // Ищем другую перегрузку change.
+                    CityStorageChangeMethodMissingCache.Add(storageType);
+                    return false;
                 }
             }
 
-            return false;
+            try
+            {
+                ParameterInfo[] cachedParameters = method.GetParameters();
+                object convertedAmount = Convert.ChangeType(
+                    amount,
+                    cachedParameters[1].ParameterType
+                );
+                method.Invoke(
+                    storage,
+                    new object[]
+                    {
+                        resourceId,
+                        convertedAmount
+                    }
+                );
+                return true;
+            }
+            catch
+            {
+                // Runtime type/overload changed unexpectedly. Drop the cache so
+                // the next tick can rediscover instead of permanently failing.
+                CityStorageChangeMethodCache.Remove(storageType);
+                return false;
+            }
         }
 
         private static void RefreshKingdomUnitStats(

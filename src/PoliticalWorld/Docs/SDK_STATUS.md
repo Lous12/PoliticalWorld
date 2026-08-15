@@ -1,9 +1,11 @@
 # Political World 1.7 / SDK status
 
-Political World 1.7 is prepared as a public beta candidate with Public API `1.6.0`.
+Political World 1.7 remains the mod release line. This internal candidate exposes Public API `1.8.0`.
 
-The legacy monolithic `Main.cs` refactor is complete. Runtime systems live in focused `API/`, `Core/`, `Politics/`, `International/`, `Warfare/`, `Map/`, and `UI/` modules. `Main.cs` is intentionally only the NeoModLoader entry declaration.
+The legacy monolithic `Main.cs` refactor is complete. Runtime systems live in focused `API/`, `Core/`, `Politics/`, `International/`, `Warfare/`, `Map/`, and `UI/` modules. `Main.cs` remains only the NeoModLoader entry declaration.
 
-Developer material includes equal Russian and English documentation, addon and standalone NeoModLoader templates, complete examples, Event Bus and Rare Political Event guides, diagnostics, versioning rules, UI recipes, and AI-oriented entry points.
+API 1.8 is creator-focused and backward-compatible: direct content lookup/filtering, safe localization, action inspection, typed addon-private kingdom data, public political-system constants/metadata, and structured ruling-party operation checks.
 
-The external SDK is distributed separately so example `.cs` files are never placed inside the `PoliticalWorld` runtime folder and accidentally compiled into the core mod.
+The same candidate also includes a behavior-preserving performance pass focused on large populations and hot reflection paths. No new Update loop or per-citizen persistent simulation is introduced.
+
+See `Docs/en/API_REFERENCE_1_8.md` or `Docs/ru/API_REFERENCE_1_8.md`.

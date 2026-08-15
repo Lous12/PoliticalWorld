@@ -13,7 +13,8 @@
 ## Куда идти сначала
 
 - [Быстрый старт: первый аддон за 10 минут](GETTING_STARTED.md)
-- [Справочник API 1.6](API_REFERENCE_1_6.md)
+- [Справочник API 1.7](API_REFERENCE_1_7.md)
+- [Справочник API 1.6](API_REFERENCE_1_6.md) — предыдущая minor-версия
 - [Идеологии](ideologies.md)
 - [Формы правления](governments.md)
 - [Партии](parties.md)

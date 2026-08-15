@@ -2,19 +2,22 @@
 
 **Core mod ID:** `Lous12.PoliticalWorld`  
 **Public API:** `Lous12.PoliticalWorld.PoliticalWorldAPI`  
-**Current API version:** `1.6.0`  
+**Current tested API:** `1.9.0`  
 **Target PC WorldBox build:** `0.51.2 / build 719`
 
-This documentation supports two different workflows:
+Political World is both:
 
-1. **Political World addons** — use the public `PoliticalWorldAPI` and depend on `Lous12.PoliticalWorld`.
-2. **Standalone NeoModLoader mods** — do not have to depend on Political World; a separate starter and NML cookbook are provided.
+1. a politics mod for WorldBox;
+2. a growing general addon framework.
+
+Political APIs remain fully supported, but creators are **not expected to limit themselves to politics**. The framework direction is to expose reusable registration, localization, data, tags, events, conditions, effects, actions, UI integration and safe WorldBox object access.
 
 ## Start here
 
 - [Getting started: first addon in 10 minutes](GETTING_STARTED.md)
-- [What can you build with Political World?](what-you-can-build.md)
-- [API 1.6 quick reference](API_REFERENCE_1_6.md)
+- [Framework vision](FRAMEWORK_VISION.md)
+- [What can you build?](what-you-can-build.md)
+- [API 1.9 quick reference](API_REFERENCE_1_9.md)
 - [Ideologies](ideologies.md)
 - [Governments](governments.md)
 - [Parties](parties.md)
@@ -28,8 +31,19 @@ This documentation supports two different workflows:
 - [Using AI for development](using-ai.md)
 - [Common mistakes](common-mistakes.md)
 
+Older API references remain useful for historical/version-specific behavior:
+- [API 1.6 reference](API_REFERENCE_1_6.md)
+
 ## Main rule
 
-Third-party addons should work through `PoliticalWorldAPI`. Do not depend on `Main`, `ScenarioBridge`, or Political World's internal classes: they are implementation details and may change without compatibility guarantees.
+Third-party addons should work through `PoliticalWorldAPI`.
 
-Political World is designed around events: register content on load, subscribe to core events, and use the Rare Political Event Registry instead of continuously scanning the world from your own `Update()` loop.
+Do not depend on `Main`, `ScenarioBridge` or Political World's internal classes. They are implementation details and may change without compatibility guarantees.
+
+If a first-party addon needs an internal shortcut, the preferred response is to improve the public API instead of creating a private backdoor.
+
+## Performance rule
+
+Prefer registration and events over continuous polling.
+
+Political World is intentionally event-driven and aggregate-first. Addons should avoid scanning the whole world every frame when an event, Action, Condition, Rare Event or cached addon state can express the same behavior.

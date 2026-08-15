@@ -13,7 +13,8 @@ This documentation supports two different workflows:
 ## Start here
 
 - [Getting started: first addon in 10 minutes](GETTING_STARTED.md)
-- [API 1.6 quick reference](API_REFERENCE_1_6.md)
+- [API 1.7 quick reference](API_REFERENCE_1_7.md)
+- [API 1.6 quick reference](API_REFERENCE_1_6.md) — previous minor reference
 - [Ideologies](ideologies.md)
 - [Governments](governments.md)
 - [Parties](parties.md)

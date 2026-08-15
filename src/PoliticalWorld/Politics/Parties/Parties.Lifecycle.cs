@@ -2184,7 +2184,7 @@ namespace Lous12.PoliticalWorld
             )
             {
                 List<Actor> units =
-                    GetCityUnitsSafe(cities[c]);
+                    GetCityUnitsSafe(cities[c], 360 - inspected);
 
                 for (
                     int i = 0;
@@ -2253,7 +2253,7 @@ namespace Lous12.PoliticalWorld
             )
             {
                 List<Actor> units =
-                    GetCityUnitsSafe(cities[c]);
+                    GetCityUnitsSafe(cities[c], 320 - inspected);
 
                 for (
                     int i = 0;

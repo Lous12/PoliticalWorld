@@ -28,6 +28,7 @@ namespace Lous12.PoliticalWorld
 
         private static readonly Dictionary<string, RegisteredRarePoliticalEvent> RegisteredRarePoliticalEvents =
             new Dictionary<string, RegisteredRarePoliticalEvent>(StringComparer.Ordinal);
+        private static List<RegisteredRarePoliticalEvent> _sortedRarePoliticalEventCache;
 
         private static int _lastRarePoliticalEventEvaluationYear = int.MinValue;
         private static object _lastRarePoliticalEventWorld;
@@ -148,6 +149,9 @@ namespace Lous12.PoliticalWorld
                 Condition = definition.Condition,
                 Handler = definition.Handler
             };
+            _sortedRarePoliticalEventCache = null;
+            InternalSeedLocalizationFallback(owner, definition.NameKey, definition.DisplayName);
+            InternalSeedLocalizationFallback(owner, definition.DescriptionKey, definition.Description);
 
             InternalRecordRarePoliticalEventRegistered(owner, id);
             return true;
@@ -175,6 +179,7 @@ namespace Lous12.PoliticalWorld
             bool removed = RegisteredRarePoliticalEvents.Remove(id);
             if (removed)
             {
+                _sortedRarePoliticalEventCache = null;
                 InternalRecordRarePoliticalEventUnregistered(owner, id);
             }
             return removed;
@@ -193,18 +198,253 @@ namespace Lous12.PoliticalWorld
 
         public static List<RarePoliticalEventInfo> GetRarePoliticalEvents()
         {
+            return ConvertRarePoliticalEventList(GetSortedRarePoliticalEvents());
+        }
+
+        public static List<RarePoliticalEventInfo> GetRarePoliticalEventsByAddon(
+            string addonId
+        )
+        {
+            string wanted = addonId == null ? "" : addonId.Trim();
             List<RarePoliticalEventInfo> result = new List<RarePoliticalEventInfo>();
-            foreach (KeyValuePair<string, RegisteredRarePoliticalEvent> pair in RegisteredRarePoliticalEvents)
+            List<RegisteredRarePoliticalEvent> events = GetSortedRarePoliticalEvents();
+            for (int i = 0; i < events.Count; i++)
             {
-                RarePoliticalEventInfo info = ConvertRarePoliticalEvent(pair.Value);
-                if (info != null) result.Add(info);
+                RegisteredRarePoliticalEvent item = events[i];
+                if (
+                    item == null ||
+                    !string.Equals(item.Owner ?? "", wanted, StringComparison.Ordinal)
+                )
+                {
+                    continue;
+                }
+                RarePoliticalEventInfo info = ConvertRarePoliticalEvent(item);
+                if (info != null)
+                {
+                    result.Add(info);
+                }
             }
-            result.Sort((a, b) => string.Compare(
-                a == null ? "" : a.Id,
-                b == null ? "" : b.Id,
-                StringComparison.Ordinal
-            ));
             return result;
+        }
+
+        private static List<RarePoliticalEventInfo> ConvertRarePoliticalEventList(
+            List<RegisteredRarePoliticalEvent> source
+        )
+        {
+            List<RarePoliticalEventInfo> result = new List<RarePoliticalEventInfo>();
+            if (source == null)
+            {
+                return result;
+            }
+            for (int i = 0; i < source.Count; i++)
+            {
+                RarePoliticalEventInfo info = ConvertRarePoliticalEvent(source[i]);
+                if (info != null)
+                {
+                    result.Add(info);
+                }
+            }
+            return result;
+        }
+
+        private static List<RegisteredRarePoliticalEvent> GetSortedRarePoliticalEvents()
+        {
+            if (_sortedRarePoliticalEventCache == null)
+            {
+                _sortedRarePoliticalEventCache =
+                    new List<RegisteredRarePoliticalEvent>(RegisteredRarePoliticalEvents.Values);
+                _sortedRarePoliticalEventCache.Sort((a, b) => string.Compare(
+                    a == null ? "" : a.Id,
+                    b == null ? "" : b.Id,
+                    StringComparison.Ordinal
+                ));
+            }
+            return _sortedRarePoliticalEventCache;
+        }
+
+
+        /// <summary>
+        /// Returns whether a registered rare political event can be executed
+        /// explicitly for the supplied kingdom. Manual execution intentionally
+        /// ignores random chance, check interval and cooldown, but still respects
+        /// the addon's Condition callback.
+        /// </summary>
+        public static bool CanExecuteRarePoliticalEvent(
+            string eventId,
+            Kingdom kingdom
+        )
+        {
+            if (kingdom == null || kingdom.data == null || string.IsNullOrWhiteSpace(eventId))
+            {
+                return false;
+            }
+
+            RegisteredRarePoliticalEvent definition;
+            if (!RegisteredRarePoliticalEvents.TryGetValue(eventId.Trim(), out definition) ||
+                definition == null ||
+                definition.Handler == null)
+            {
+                return false;
+            }
+
+            if (definition.Condition == null)
+            {
+                return true;
+            }
+
+            try
+            {
+                return definition.Condition(kingdom);
+            }
+            catch (Exception exception)
+            {
+                InternalRecordCallbackError(
+                    definition.Owner,
+                    "rare.condition:" + definition.Id,
+                    exception
+                );
+                LogRareEventCallbackFailure(
+                    definition.Owner,
+                    definition.Id,
+                    "condition",
+                    exception
+                );
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Explicitly executes a registered rare political event for a kingdom.
+        /// This is the safe public path for scenario/director tools.
+        ///
+        /// Random chance, periodic check interval and existing cooldown are
+        /// bypassed because the caller explicitly requested the event. The
+        /// event's Condition is still respected. A successful manual execution
+        /// records the current year as the last fire year, so the normal yearly
+        /// pipeline will not immediately re-fire the same event through cooldown.
+        /// </summary>
+        public static bool ExecuteRarePoliticalEvent(
+            string eventId,
+            Kingdom kingdom
+        )
+        {
+            if (kingdom == null || kingdom.data == null || string.IsNullOrWhiteSpace(eventId))
+            {
+                return false;
+            }
+
+            RegisteredRarePoliticalEvent definition;
+            if (!RegisteredRarePoliticalEvents.TryGetValue(eventId.Trim(), out definition) ||
+                definition == null ||
+                definition.Handler == null)
+            {
+                return false;
+            }
+
+            if (definition.Condition != null)
+            {
+                bool eligible;
+                try
+                {
+                    eligible = definition.Condition(kingdom);
+                }
+                catch (Exception exception)
+                {
+                    InternalRecordCallbackError(
+                        definition.Owner,
+                        "rare.condition:" + definition.Id,
+                        exception
+                    );
+                    LogRareEventCallbackFailure(
+                        definition.Owner,
+                        definition.Id,
+                        "condition",
+                        exception
+                    );
+                    return false;
+                }
+
+                if (!eligible)
+                {
+                    return false;
+                }
+            }
+
+            int currentYear = GetRarePoliticalEventCurrentYearSafe();
+            string lastFireKey = "__pw_rare_last_fire:" + definition.Id;
+
+            // Match the normal rare-event path: record the attempt before
+            // addon code runs so a broken callback cannot be spammed repeatedly.
+            SetKingdomInt(
+                kingdom,
+                definition.Owner,
+                lastFireKey,
+                currentYear
+            );
+
+            try
+            {
+                definition.Handler(kingdom);
+            }
+            catch (Exception exception)
+            {
+                InternalRecordCallbackError(
+                    definition.Owner,
+                    "rare.handler:" + definition.Id,
+                    exception
+                );
+                LogRareEventCallbackFailure(
+                    definition.Owner,
+                    definition.Id,
+                    "handler",
+                    exception
+                );
+                return false;
+            }
+
+            InternalEmitCoreEvent(
+                Events.RarePoliticalEventFired,
+                kingdom,
+                "",
+                definition.Id,
+                0,
+                definition.ChancePermille,
+                "",
+                "",
+                definition.Id,
+                null,
+                "",
+                "",
+                "",
+                "",
+                definition.Owner,
+                "rare-political-event",
+                currentYear
+            );
+
+            return true;
+        }
+
+        private static int GetRarePoliticalEventCurrentYearSafe()
+        {
+            try
+            {
+                int year = (int)Date.getYearsSince(0.0);
+                if (year >= 0)
+                {
+                    return year;
+                }
+            }
+            catch
+            {
+            }
+
+            if (_lastRarePoliticalEventEvaluationYear != int.MinValue)
+            {
+                return Math.Max(0, _lastRarePoliticalEventEvaluationYear);
+            }
+
+            return 0;
         }
 
         /// <summary>
@@ -236,12 +476,7 @@ namespace Lous12.PoliticalWorld
             _lastRarePoliticalEventEvaluationYear = currentYear;
 
             List<RegisteredRarePoliticalEvent> events =
-                new List<RegisteredRarePoliticalEvent>(RegisteredRarePoliticalEvents.Values);
-            events.Sort((a, b) => string.Compare(
-                a == null ? "" : a.Id,
-                b == null ? "" : b.Id,
-                StringComparison.Ordinal
-            ));
+                GetSortedRarePoliticalEvents();
 
             for (int k = 0; k < kingdoms.Count; k++)
             {
@@ -413,39 +648,16 @@ namespace Lous12.PoliticalWorld
         private static string ResolveRarePoliticalEventName(RegisteredRarePoliticalEvent item)
         {
             if (item == null) return "";
-            string localized = ResolveRarePoliticalEventLocale(item.NameKey);
-            if (!string.IsNullOrWhiteSpace(localized)) return localized;
-            if (!string.IsNullOrWhiteSpace(item.DisplayName)) return item.DisplayName;
-            if (!string.IsNullOrWhiteSpace(item.NameKey)) return item.NameKey;
-            return item.Id ?? "";
+            string fallback = !string.IsNullOrWhiteSpace(item.DisplayName)
+                ? item.DisplayName
+                : (!string.IsNullOrWhiteSpace(item.NameKey) ? item.NameKey : (item.Id ?? ""));
+            return ResolveLocalization(item.NameKey, fallback);
         }
 
         private static string ResolveRarePoliticalEventDescription(RegisteredRarePoliticalEvent item)
         {
             if (item == null) return "";
-            string localized = ResolveRarePoliticalEventLocale(item.DescriptionKey);
-            if (!string.IsNullOrWhiteSpace(localized)) return localized;
-            if (!string.IsNullOrWhiteSpace(item.Description)) return item.Description;
-            if (!string.IsNullOrWhiteSpace(item.DescriptionKey)) return item.DescriptionKey;
-            return "";
-        }
-
-        private static string ResolveRarePoliticalEventLocale(string key)
-        {
-            if (string.IsNullOrWhiteSpace(key)) return "";
-            try
-            {
-                string localized = NeoModLoader.General.LM.Get(key.Trim());
-                if (!string.IsNullOrWhiteSpace(localized) &&
-                    !string.Equals(localized, key.Trim(), StringComparison.Ordinal))
-                {
-                    return localized;
-                }
-            }
-            catch
-            {
-            }
-            return "";
+            return ResolveLocalization(item.DescriptionKey, item.Description ?? "");
         }
 
         private static void LogRareEventCallbackFailure(

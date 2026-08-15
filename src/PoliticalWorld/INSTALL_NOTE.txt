@@ -1,24 +1,27 @@
-Political World 1.7.0 INTERNAL — Foundation Step 9A
+Political World 1.7.0 — API 1.7 internal test build
 
-Canonical project identity:
+Canonical identity:
 - Folder: PoliticalWorld
-- NML GUID / dependency ID: Lous12.PoliticalWorld
-- Public C# namespace: Lous12.PoliticalWorld
-- Public API entry point: Lous12.PoliticalWorld.PoliticalWorldAPI
-- Public API version: 1.6.0 (UNCHANGED in this step)
+- NML GUID: Lous12.PoliticalWorld
+- Public namespace: Lous12.PoliticalWorld
+- Public API: Lous12.PoliticalWorld.PoliticalWorldAPI
+- Public API version: 1.7.0
 
 INSTALL
-1. Delete/replace the previous internal PoliticalWorld folder.
-2. Install this PoliticalWorld folder.
-3. The existing API 1.6 Canary can remain installed for the test.
+1. Replace the previous `PoliticalWorld` mod folder with this one.
+2. Keep NeoModLoader 1.2.0.1 enabled.
+3. Use Scenario Tools 0.3.0 with this build.
 
-FOUNDATION STEP 9A — FIRST SAFE MAIN.CS SPLIT
-The Political Map implementation was moved out of the giant Main.cs into:
-- Map/PoliticalMap/PoliticalMap.State.cs
-- Map/PoliticalMap/PoliticalMap.Patches.cs
-- Map/PoliticalMap/PoliticalMap.Rendering.cs
+API 1.7 ADDITION
+- `CanExecuteRarePoliticalEvent(eventId, kingdom)`
+- `ExecuteRarePoliticalEvent(eventId, kingdom)`
+- capability: `political-event.rare.execute`
 
-No Political Map logic was redesigned. The same constants, fields, nested meta object, Harmony patch handlers, map registration and rendering methods were moved into partial Main files. Call sites and public API are unchanged.
+Manual rare-event execution:
+- uses the public API only;
+- respects the registered event Condition;
+- intentionally bypasses random chance, periodic check interval and existing cooldown;
+- records the current world year as last-fire state;
+- uses the same callback isolation and RarePoliticalEventFired core event.
 
-IMPORTANT
-Legacy internal IDs beginning with ukiol_ remain intentionally unchanged for save/content compatibility.
+Legacy `ukiol_*` identifiers remain intentionally unchanged for save/content compatibility.

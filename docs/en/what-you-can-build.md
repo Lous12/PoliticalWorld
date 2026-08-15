@@ -1,168 +1,137 @@
 # What can you build with Political World?
 
-Political World is both a WorldBox politics mod and a framework for other creators. You can use only the small part you need, or build a large addon ecosystem on top of it.
+Political World is both a politics mod and a growing addon framework.
 
-## 1. Very small beginner addons
+The important distinction is:
 
-Good first projects:
+> **Political World contains politics. PoliticalWorldAPI does not need to limit your imagination to politics.**
 
-- one new ideology;
-- one ideological current;
-- one custom government;
-- one political event;
-- one Scenario Action;
-- one listener that reacts to an election, crisis or government change;
-- a tiny addon that stores one custom value for each kingdom.
+## What works especially well today
 
-These are useful because you can see a visible result quickly without understanding the whole Political World codebase.
+API 1.9 already provides strong support for:
 
-## 2. Ideology and politics packs
+- ideologies and ideological currents;
+- custom governments;
+- political parties and ruling-party tools;
+- kingdom political state;
+- Event Bus listeners;
+- registered Actions;
+- Rare Events, including manual execution for creator tools;
+- Conditions and reusable Effects;
+- addon-private data and tags;
+- optional localization with English/readable fallback;
+- diagnostics and capability checks.
 
-You can create themed content packs such as:
+That makes these projects practical today:
 
-- historical ideology expansions;
-- fictional ideology trees;
-- regional political systems;
-- alternative-history political packs;
-- cyberpunk, medieval, sci-fi or post-apocalyptic ideology sets;
-- additional party behavior built around Political World events and state.
+- ideology packs;
+- government packs;
+- political event packs;
+- election/party extensions;
+- fantasy politics;
+- dynasty/ruler events;
+- scenario/director tools;
+- alternate-history politics;
+- creator/debug utilities around Political World state.
 
-## 3. Custom governments
+## What the framework is growing toward
 
-The Government Registry lets addons create their own government identities while reusing a safe Political World archetype.
+The general framework direction is intended to make projects outside pure politics possible without the core mod implementing those systems first.
 
 Examples:
+
+- religions and cults;
+- magic or supernatural systems;
+- economy and trade extensions;
+- diseases and epidemics;
+- technologies;
+- professions;
+- character/RPG mechanics;
+- dynasties;
+- city-level systems;
+- custom world events;
+- education or social systems;
+- creator tools;
+- integrations between several independent addons.
+
+These are **framework targets and addon ideas**, not a claim that Political World already ships all of those gameplay systems.
+
+## Start tiny
+
+A useful addon can be very small:
+
+- one event;
+- one ideology;
+- one government;
+- one Action;
+- one new custom value stored on a kingdom;
+- one listener that reacts to another addon event;
+- one creator utility.
+
+Small projects are important because they are easy to understand, test and improve.
+
+## Build with reusable primitives
+
+The direction of the framework is:
 
 ```text
-Magocracy             → Oligarchy
-Dragon Monarchy       → Absolute Monarchy
-Arcane Parliament     → Parliamentary Republic
-Necrocracy            → One-Party State
-Military Junta        → Military Dictatorship
-Council of Druids     → Council Republic
-Technocracy           → Oligarchy / Republic archetype
+Addon
+  ↓
+Register content
+  ↓
+Store addon-owned data
+  ↓
+React to events
+  ↓
+Check Conditions
+  ↓
+Apply Effects / Actions
+  ↓
+Publish events for other addons
 ```
 
-The addon gets its own government ID, tags and name without having to rewrite the entire government simulation.
+The less a creator needs to touch Political World internals, the healthier the ecosystem becomes.
 
-## 4. Political event mods
+## Cross-addon ecosystems
 
-You can create event packs using the Event Bus and Rare Political Event Registry.
+A future ecosystem does not need one giant overhaul that implements everything.
 
-Examples:
+It can be several mods:
 
-- palace coup;
-- constitutional crisis;
-- succession dispute;
-- party split;
-- reform movement;
-- military intervention in politics;
-- anti-corruption campaign;
-- religious-political conflict;
-- magical catastrophe that changes political stability;
-- election consequences;
-- dynasty or ruler-specific events.
+```text
+Religion addon ─┐
+Magic addon ────┼─→ shared events / capabilities
+Economy addon ──┤
+Politics addon ─┘
+```
 
-The goal is to register events instead of scanning the whole world every frame.
+Each addon can stay small and focused.
 
-## 5. Fantasy Politics-style addons
+## Scenario Tools
 
-A fantasy addon can register content and react to Political World state without modifying Political World internals.
+Scenario Tools is a first-party addon and a test of the public framework.
 
-Possible themes:
+It intentionally uses the same Public API rules as third-party addons. When Scenario Tools needs something the API cannot express, the preferred fix is to improve PoliticalWorldAPI.
 
-- Dragon Blood dynasties;
-- Magocracy;
-- Necropolitics;
-- Divine authority;
-- vampire aristocracies;
-- elven councils;
-- dwarven guild republics;
-- immortal rulers;
-- magical parties and ideological movements.
+This makes it useful both as a player tool and as a real-world API test.
 
-Actor traits can be combined with Political World conditions, kingdom tags and events.
+## Completely standalone WorldBox mods
 
-## 6. Scenario / Director tools
+You still do **not** have to depend on Political World.
 
-The public action system makes it possible to build an external editor or director-style mod.
+The repository contains a standalone NeoModLoader starter and NML UI cookbook for unrelated WorldBox mods.
 
-It could let the player:
+Political World is not intended to replace NeoModLoader. It adds a higher-level framework and examples on top of it.
 
-- choose a kingdom;
-- change ideology/current/government;
-- edit stability;
-- create or rename parties;
-- modify party support/radicalism;
-- assign a ruling party;
-- run registered political actions or events;
-- build presets for scenario creation.
+## Where should I start?
 
-This is the foundation for a future **Scenario Tools** addon.
-
-## 7. Large overhauls
-
-Political World can act as a dependency for a much larger mod.
-
-Examples:
-
-- total fantasy politics overhaul;
-- alternate-history world politics;
-- Cold War-style political blocs;
-- dynastic politics expansion;
-- religion + politics overhaul;
-- economy + politics extension;
-- deep election and party expansion;
-- a roleplay/scenario framework that uses Political World state as one layer.
-
-A large addon should still use the public API instead of depending on internal `Main` or `ScenarioBridge` code.
-
-## 8. Completely standalone WorldBox mods
-
-You do **not** have to depend on Political World.
-
-The repository also contains a standalone NeoModLoader starter and NML cookbook. You can use those materials to learn how to create your own unrelated WorldBox mod.
-
-Possible standalone projects:
-
-- new powers;
-- custom tabs and windows;
-- gameplay utilities;
-- world-generation tools;
-- creature systems;
-- scenario tools unrelated to politics;
-- UI experiments;
-- your own complete framework.
-
-Political World is not meant to replace NeoModLoader. It provides examples and recipes in the context we learned while building the mod.
-
-## 9. What can you do with the repository files?
-
-Under the MIT License, you may generally:
-
-- read and study the source code;
-- copy the templates and examples;
-- modify Political World for yourself;
-- fork the repository;
-- publish your own fork or continuation;
-- use Political World as a dependency;
-- create addons that require Political World;
-- use the standalone NML starter for unrelated mods;
-- use the documentation with AI coding assistants;
-- contribute fixes, examples or documentation back to the project.
-
-When redistributing MIT-licensed Political World code, preserve the required copyright and license notice. The repository's `LICENSE` file contains the exact license text.
-
-## 10. Where should I start?
-
-If you are new to modding:
+If you want a Political World dependent addon:
 
 1. Copy `templates/PoliticalWorld-Addon-Template`.
 2. Read [Getting Started](GETTING_STARTED.md).
-3. Add one small visible feature.
-4. Run WorldBox and check the log.
-5. Only then expand the project.
+3. Read [Framework Vision](FRAMEWORK_VISION.md).
+4. Build one visible feature.
+5. Test it.
+6. Ask for a missing API capability instead of bypassing internals.
 
-If you want a standalone mod instead, start from `templates/WorldBox-NeoMod-Starter` and read [Standalone NML mod](standalone-nml-starter.md).
-
-You do not have to understand everything before you create something.
+If you want a standalone mod, use `templates/WorldBox-NeoMod-Starter`.

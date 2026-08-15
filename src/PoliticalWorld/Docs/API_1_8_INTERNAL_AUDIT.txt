@@ -1,0 +1,28 @@
+Political World API 1.8 + Performance Pass — internal candidate
+
+API:
+- Public API version 1.8.0; mod line remains 1.7.0.
+- Direct addon/ideology/action lookup.
+- Filter ideologies/governments/actions/rare events by addon.
+- Safe localization helpers and safe internal addon-content display resolution.
+- Get/Set kingdom bool and float in existing addon-private namespace.
+- PoliticalSystems public constants + metadata.
+- CheckSetKingdomRulingParty returns structured rejection reason.
+- API 1.7 manual Rare Event execution remains.
+
+Performance:
+- Actor collection uniqueness uses HashSet-backed O(N) reads; small kingdom/city collection paths retain their lightweight legacy behavior.
+- GetCityUnitsSafe gained maxItems; capped leader/candidate searches no longer copy entire huge cities first.
+- Capped paths updated: party identity/leader, political movement leader, movement display leader, party congress candidates/identity, ruler subject lifespan sample.
+- Economy ideology/support/behavior computed once per kingdom instead of once per city.
+- City storage change MethodInfo cached per storage runtime type.
+- Rare Political Event sorted registry cached until registration changes.
+- Hot collection/reflection member-name arrays moved to static readonly.
+- Root/current ideology reads no longer build/filter the entire ideology list.
+
+Safety:
+- No new Update loop.
+- No new gameplay mechanic.
+- Legacy IDs/save keys preserved.
+- ScenarioBridge remains internal; addons use PoliticalWorldAPI.
+- This artifact is NOT runtime-confirmed until tested in WorldBox.

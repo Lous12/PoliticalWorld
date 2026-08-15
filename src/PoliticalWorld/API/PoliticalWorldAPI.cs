@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace Lous12.PoliticalWorld
 {
@@ -12,9 +13,9 @@ namespace Lous12.PoliticalWorld
     /// </summary>
     public static partial class PoliticalWorldAPI
     {
-        public const string ApiVersion = "1.6.0";
+        public const string ApiVersion = "1.9.0";
         public const int ApiMajor = 1;
-        public const int ApiMinor = 6;
+        public const int ApiMinor = 9;
         public const string CoreModId = "Lous12.PoliticalWorld";
 
         public delegate bool KingdomCondition(Kingdom kingdom);
@@ -72,6 +73,13 @@ namespace Lous12.PoliticalWorld
             public string Id;
             public string ParentId;
             public string NameKey;
+            // Literal fallback text. English is recommended, but any readable
+            // default is accepted. Localization is optional.
+            public string DisplayName;
+            public string DescriptionKey;
+            public string Description;
+            public string Icon;
+            public int SortOrder;
             public int HighSupportStability;
             public int SupportThreshold = -1;
             public int LowSupportStability;
@@ -89,6 +97,10 @@ namespace Lous12.PoliticalWorld
             public string RootId;
             public string NameKey;
             public string DisplayName;
+            public string DescriptionKey;
+            public string Description;
+            public string Icon;
+            public int SortOrder;
             public string Source;
             public int Tier;
             public string[] Tags;
@@ -117,6 +129,10 @@ namespace Lous12.PoliticalWorld
             public string Id;
             public string NameKey;
             public string DisplayName;
+            public string DescriptionKey;
+            public string Description;
+            public string Icon;
+            public int SortOrder;
             public GovernmentArchetype BaseArchetype;
             public string[] Tags;
         }
@@ -126,6 +142,10 @@ namespace Lous12.PoliticalWorld
             public string Id;
             public string NameKey;
             public string DisplayName;
+            public string DescriptionKey;
+            public string Description;
+            public string Icon;
+            public int SortOrder;
             public GovernmentArchetype BaseArchetype;
             public string Source;
             public bool IsCustom;
@@ -234,6 +254,43 @@ namespace Lous12.PoliticalWorld
             public bool CheckImmediately;
         }
 
+        /// <summary>
+        /// Developer-facing result for operations that can be rejected by the
+        /// current political state. Code is stable and suitable for UI logic;
+        /// Message is a human-readable diagnostic.
+        /// </summary>
+        public sealed class OperationCheck
+        {
+            public bool Allowed;
+            public string Code;
+            public string Message;
+        }
+
+        public sealed class PoliticalSystemInfo
+        {
+            public string Id;
+            public string DisplayName;
+            public bool CompetitiveElections;
+            public bool PartyMandate;
+            public bool CouncilBased;
+            public bool Decentralized;
+        }
+
+        /// <summary>
+        /// Stable public constants for Political World's current political
+        /// systems. Addons should use these constants instead of hardcoding
+        /// legacy ukiol_* save IDs.
+        /// </summary>
+        public static class PoliticalSystems
+        {
+            public const string Competitive = "ukiol_political_system_competitive";
+            public const string OneParty = "ukiol_political_system_one_party";
+            public const string Soviet = "ukiol_political_system_soviet";
+            public const string SovietOneParty = "ukiol_political_system_soviet_one_party";
+            public const string NonElectoral = "ukiol_political_system_non_electoral";
+            public const string Decentralized = "ukiol_political_system_decentralized";
+        }
+
         private static readonly Dictionary<string, AddonInfo> RegisteredAddons =
             new Dictionary<string, AddonInfo>(StringComparer.Ordinal);
 
@@ -243,11 +300,21 @@ namespace Lous12.PoliticalWorld
             {
                 Id = CoreModId,
                 Name = "Political World",
-                Version = "1.7.0",
+                Version = "1.9.0",
                 Description = "Political World core API",
                 Author = "Lous12"
             };
         }
+
+        private static readonly string[] PoliticalSystemIds = new string[]
+        {
+            PoliticalSystems.Competitive,
+            PoliticalSystems.OneParty,
+            PoliticalSystems.Soviet,
+            PoliticalSystems.SovietOneParty,
+            PoliticalSystems.NonElectoral,
+            PoliticalSystems.Decentralized
+        };
 
         private static readonly string[] Capabilities = new string[]
         {
@@ -266,6 +333,23 @@ namespace Lous12.PoliticalWorld
             "kingdom.addon-tags",
             "kingdom.addon-data",
             "kingdom.addon-data.v2",
+            "kingdom.addon-data.typed",
+            "content.lookup",
+            "content.filter-by-addon",
+            "localization.safe",
+            "localization.fallback",
+            "localization.register",
+            "content.metadata",
+            "content.batch-register",
+            "content.query",
+            "effect.helpers",
+            "condition.helpers.v2",
+            "operation.result",
+            "party.addon-data",
+            "diagnostics.report",
+            "political-system.read",
+            "operation.checks",
+            "action.inspect",
             "validation",
             "party.read",
             "party.write",
@@ -278,6 +362,7 @@ namespace Lous12.PoliticalWorld
             "event.core-hooks",
             "political-event.registry",
             "political-event.rare",
+            "political-event.rare.execute",
             "diagnostics"
         };
 
@@ -302,19 +387,7 @@ namespace Lous12.PoliticalWorld
 
         public static bool HasCapability(string capability)
         {
-            if (string.IsNullOrWhiteSpace(capability))
-            {
-                return false;
-            }
-            string wanted = capability.Trim();
-            for (int i = 0; i < Capabilities.Length; i++)
-            {
-                if (string.Equals(Capabilities[i], wanted, StringComparison.Ordinal))
-                {
-                    return true;
-                }
-            }
-            return false;
+            return InternalHasCapabilityFast(capability);
         }
 
         public static ValidationResult ValidateAddon(AddonDefinition definition)
@@ -398,6 +471,10 @@ namespace Lous12.PoliticalWorld
             {
                 AddValidationIssue(result, "PW207", "RandomWeight cannot be negative; it will effectively behave as 0.", false);
             }
+            if (string.IsNullOrWhiteSpace(definition.DisplayName) && string.IsNullOrWhiteSpace(definition.NameKey))
+            {
+                AddValidationIssue(result, "PW208", "Ideology has no DisplayName or NameKey; its Id will be used as readable fallback text.", false);
+            }
             return FinishValidation(result);
         }
 
@@ -468,6 +545,89 @@ namespace Lous12.PoliticalWorld
                 RegisteredAddons.ContainsKey(addonId.Trim());
         }
 
+        public static AddonInfo GetAddon(string addonId)
+        {
+            if (string.IsNullOrWhiteSpace(addonId))
+            {
+                return null;
+            }
+
+            AddonInfo info;
+            if (!RegisteredAddons.TryGetValue(addonId.Trim(), out info) || info == null)
+            {
+                return null;
+            }
+            return new AddonInfo()
+            {
+                Id = info.Id,
+                Name = info.Name,
+                Version = info.Version,
+                Description = info.Description,
+                Author = info.Author
+            };
+        }
+
+        /// <summary>
+        /// Checks localization without forcing getText to emit a missing-text
+        /// error. Useful for optional localization supplied by third-party addons.
+        /// </summary>
+        public static bool HasLocalization(string key)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                return false;
+            }
+            try
+            {
+                return NeoModLoader.General.LM.Has(key.Trim());
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static string ResolveLocalization(string key, string fallback = "")
+        {
+            string normalized = key == null ? "" : key.Trim();
+
+            string registered = InternalResolveRegisteredLocalization(normalized);
+            if (!string.IsNullOrEmpty(registered))
+            {
+                return registered;
+            }
+
+            if (!string.IsNullOrEmpty(normalized))
+            {
+                try
+                {
+                    if (NeoModLoader.General.LM.Has(normalized))
+                    {
+                        string value = NeoModLoader.General.LM.Get(normalized);
+                        if (!string.IsNullOrEmpty(value))
+                        {
+                            return value;
+                        }
+                    }
+                }
+                catch
+                {
+                }
+
+                registered = InternalResolveEnglishLocalization(normalized);
+                if (!string.IsNullOrEmpty(registered))
+                {
+                    return registered;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(fallback))
+            {
+                return fallback;
+            }
+            return normalized;
+        }
+
         public static List<AddonInfo> GetRegisteredAddons()
         {
             List<AddonInfo> result = new List<AddonInfo>();
@@ -503,6 +663,28 @@ namespace Lous12.PoliticalWorld
                 Main.ScenarioBridge.IdeologyInfo item = source[i];
                 if (item == null) continue;
                 result.Add(ConvertIdeology(item));
+            }
+            return result;
+        }
+
+        public static IdeologyInfo GetIdeology(string ideologyId)
+        {
+            Main.ScenarioBridge.IdeologyInfo item =
+                Main.ScenarioBridge.GetIdeology(ideologyId);
+            return item == null ? null : ConvertIdeology(item);
+        }
+
+        public static List<IdeologyInfo> GetIdeologiesByAddon(string addonId)
+        {
+            List<Main.ScenarioBridge.IdeologyInfo> source =
+                Main.ScenarioBridge.GetIdeologiesBySource(addonId);
+            List<IdeologyInfo> result = new List<IdeologyInfo>();
+            for (int i = 0; i < source.Count; i++)
+            {
+                if (source[i] != null)
+                {
+                    result.Add(ConvertIdeology(source[i]));
+                }
             }
             return result;
         }
@@ -550,6 +732,11 @@ namespace Lous12.PoliticalWorld
                     Id = definition.Id,
                     ParentId = definition.ParentId,
                     NameKey = definition.NameKey,
+                    DisplayName = definition.DisplayName,
+                    DescriptionKey = definition.DescriptionKey,
+                    Description = definition.Description,
+                    Icon = definition.Icon,
+                    SortOrder = definition.SortOrder,
                     Source = addonId.Trim(),
                     HighSupportStability = definition.HighSupportStability,
                     SupportThreshold = definition.SupportThreshold,
@@ -589,6 +776,10 @@ namespace Lous12.PoliticalWorld
                     Id = item.Id,
                     NameKey = item.Id,
                     DisplayName = item.DisplayName,
+                    DescriptionKey = "",
+                    Description = "",
+                    Icon = "",
+                    SortOrder = 0,
                     BaseArchetype = InternalGetArchetypeForCoreGovernmentId(item.Id),
                     Source = CoreModId,
                     IsCustom = false,
@@ -621,6 +812,10 @@ namespace Lous12.PoliticalWorld
                     Id = item.Id,
                     NameKey = item.Id,
                     DisplayName = item.DisplayName,
+                    DescriptionKey = "",
+                    Description = "",
+                    Icon = "",
+                    SortOrder = 0,
                     BaseArchetype = InternalGetArchetypeForCoreGovernmentId(item.Id),
                     Source = CoreModId,
                     IsCustom = false,
@@ -628,6 +823,78 @@ namespace Lous12.PoliticalWorld
                 };
             }
             return null;
+        }
+
+        public static List<GovernmentInfo> GetGovernmentsByAddon(string addonId)
+        {
+            string wanted = addonId == null ? "" : addonId.Trim();
+            if (string.Equals(wanted, CoreModId, StringComparison.Ordinal))
+            {
+                List<GovernmentInfo> all = GetGovernmentForms();
+                List<GovernmentInfo> coreOnly = new List<GovernmentInfo>();
+                for (int i = 0; i < all.Count; i++)
+                {
+                    GovernmentInfo info = all[i];
+                    if (info != null &&
+                        string.Equals(info.Source ?? "", CoreModId, StringComparison.Ordinal))
+                    {
+                        coreOnly.Add(info);
+                    }
+                }
+                return coreOnly;
+            }
+            return InternalGetRegisteredGovernmentsByOwner(wanted);
+        }
+
+        public static List<PoliticalSystemInfo> GetPoliticalSystems()
+        {
+            List<PoliticalSystemInfo> result = new List<PoliticalSystemInfo>();
+            for (int i = 0; i < PoliticalSystemIds.Length; i++)
+            {
+                PoliticalSystemInfo info = GetPoliticalSystem(PoliticalSystemIds[i]);
+                if (info != null)
+                {
+                    result.Add(info);
+                }
+            }
+            return result;
+        }
+
+        public static PoliticalSystemInfo GetPoliticalSystem(string systemId)
+        {
+            if (string.IsNullOrWhiteSpace(systemId))
+            {
+                return null;
+            }
+
+            string id = systemId.Trim();
+            bool known =
+                id == PoliticalSystems.Competitive ||
+                id == PoliticalSystems.OneParty ||
+                id == PoliticalSystems.Soviet ||
+                id == PoliticalSystems.SovietOneParty ||
+                id == PoliticalSystems.NonElectoral ||
+                id == PoliticalSystems.Decentralized;
+            if (!known)
+            {
+                return null;
+            }
+
+            return new PoliticalSystemInfo()
+            {
+                Id = id,
+                DisplayName = ResolveLocalization(id, id),
+                CompetitiveElections = id == PoliticalSystems.Competitive,
+                PartyMandate =
+                    id == PoliticalSystems.Competitive ||
+                    id == PoliticalSystems.OneParty ||
+                    id == PoliticalSystems.SovietOneParty,
+                CouncilBased =
+                    id == PoliticalSystems.Soviet ||
+                    id == PoliticalSystems.SovietOneParty ||
+                    id == PoliticalSystems.Decentralized,
+                Decentralized = id == PoliticalSystems.Decentralized
+            };
         }
 
         public static KingdomState GetKingdomState(Kingdom kingdom)
@@ -820,6 +1087,23 @@ namespace Lous12.PoliticalWorld
         /// Manually changes the party mandate without forging an election-history
         /// entry. The kingdom must use competitive elections or a one-party system.
         /// </summary>
+        public static OperationCheck CheckSetKingdomRulingParty(
+            Kingdom kingdom,
+            string partyId
+        )
+        {
+            string code = Main.ScenarioBridge.CheckSetKingdomRulingParty(
+                kingdom,
+                partyId
+            );
+            return new OperationCheck()
+            {
+                Allowed = string.Equals(code, "ok", StringComparison.Ordinal),
+                Code = code ?? "unknown",
+                Message = GetOperationCheckMessage(code)
+            };
+        }
+
         public static bool SetKingdomRulingParty(Kingdom kingdom, string partyId)
         {
             return Main.ScenarioBridge.SetKingdomRulingParty(kingdom, partyId);
@@ -901,6 +1185,81 @@ namespace Lous12.PoliticalWorld
                 Main.ScenarioBridge.SetAddonKingdomString(kingdom, addonId, key, value);
         }
 
+        public static bool GetKingdomBool(
+            Kingdom kingdom,
+            string addonId,
+            string key,
+            bool fallback
+        )
+        {
+            int encoded = GetKingdomInt(
+                kingdom,
+                addonId,
+                key,
+                fallback ? 1 : 0
+            );
+            return encoded != 0;
+        }
+
+        public static bool SetKingdomBool(
+            Kingdom kingdom,
+            string addonId,
+            string key,
+            bool value
+        )
+        {
+            return SetKingdomInt(
+                kingdom,
+                addonId,
+                key,
+                value ? 1 : 0
+            );
+        }
+
+        public static float GetKingdomFloat(
+            Kingdom kingdom,
+            string addonId,
+            string key,
+            float fallback
+        )
+        {
+            string value = GetKingdomString(
+                kingdom,
+                addonId,
+                key,
+                ""
+            );
+            float parsed;
+            if (
+                !string.IsNullOrEmpty(value) &&
+                float.TryParse(
+                    value,
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture,
+                    out parsed
+                )
+            )
+            {
+                return parsed;
+            }
+            return fallback;
+        }
+
+        public static bool SetKingdomFloat(
+            Kingdom kingdom,
+            string addonId,
+            string key,
+            float value
+        )
+        {
+            return SetKingdomString(
+                kingdom,
+                addonId,
+                key,
+                value.ToString("R", CultureInfo.InvariantCulture)
+            );
+        }
+
         public static bool PublishKingdomEvent(Kingdom kingdom, string text, string eventId, float cooldownSeconds)
         {
             return Main.ScenarioBridge.PublishKingdomEvent(kingdom, text, eventId, cooldownSeconds);
@@ -950,6 +1309,8 @@ namespace Lous12.PoliticalWorld
             );
             if (registered)
             {
+                InternalSeedLocalizationFallback(addonId, definition.NameKey, definition.DisplayName);
+                InternalSeedLocalizationFallback(addonId, definition.DescriptionKey, definition.Description);
                 InternalRecordActionRegistered(addonId.Trim(), definition.Id);
             }
             return registered;
@@ -969,29 +1330,31 @@ namespace Lous12.PoliticalWorld
             return removed;
         }
 
+        public static ActionInfo GetAction(string actionId, Kingdom kingdom = null)
+        {
+            Main.ScenarioBridge.KingdomActionInfo item =
+                Main.ScenarioBridge.GetKingdomAction(actionId, kingdom);
+            return item == null ? null : ConvertAction(item);
+        }
+
+        public static List<ActionInfo> GetActionsByAddon(
+            string addonId,
+            Kingdom kingdom = null
+        )
+        {
+            List<Main.ScenarioBridge.KingdomActionInfo> source =
+                Main.ScenarioBridge.GetKingdomActionsBySource(addonId, kingdom);
+            return ConvertActions(source);
+        }
+
         public static List<ActionInfo> GetActions(Kingdom kingdom)
         {
-            List<Main.ScenarioBridge.KingdomActionInfo> source = Main.ScenarioBridge.GetKingdomActions(kingdom);
-            List<ActionInfo> result = new List<ActionInfo>();
-            for (int i = 0; i < source.Count; i++)
-            {
-                Main.ScenarioBridge.KingdomActionInfo item = source[i];
-                if (item == null) continue;
-                result.Add(new ActionInfo()
-                {
-                    Id = item.Id,
-                    Category = item.Category,
-                    NameKey = item.NameKey,
-                    DescriptionKey = item.DescriptionKey,
-                    DisplayName = item.DisplayName,
-                    Description = item.Description,
-                    Source = item.Source,
-                    Icon = item.Icon,
-                    SortOrder = item.SortOrder,
-                    Enabled = item.Enabled
-                });
-            }
-            return result;
+            return ConvertActions(Main.ScenarioBridge.GetKingdomActions(kingdom));
+        }
+
+        public static bool CanExecuteAction(string actionId, Kingdom kingdom)
+        {
+            return Main.ScenarioBridge.CanExecuteKingdomAction(actionId, kingdom);
         }
 
         public static bool ExecuteAction(string actionId, Kingdom kingdom)
@@ -999,7 +1362,7 @@ namespace Lous12.PoliticalWorld
             return Main.ScenarioBridge.ExecuteKingdomAction(actionId, kingdom);
         }
 
-        public static class Conditions
+        public static partial class Conditions
         {
             public static KingdomCondition All(params KingdomCondition[] conditions)
             {
@@ -1215,15 +1578,71 @@ namespace Lous12.PoliticalWorld
 
         private static IdeologyInfo FindIdeology(string ideologyId)
         {
-            if (string.IsNullOrWhiteSpace(ideologyId)) return null;
-            string wanted = ideologyId.Trim();
-            List<IdeologyInfo> ideologies = GetIdeologies();
-            for (int i = 0; i < ideologies.Count; i++)
+            return GetIdeology(ideologyId);
+        }
+
+        private static string GetOperationCheckMessage(string code)
+        {
+            switch (code)
             {
-                IdeologyInfo info = ideologies[i];
-                if (info != null && string.Equals(info.Id, wanted, StringComparison.Ordinal)) return info;
+                case "ok":
+                    return "Operation is allowed.";
+                case "invalid-kingdom":
+                    return "Kingdom is missing or has no data.";
+                case "party-mandate-not-supported":
+                    return "This political system does not support a ruling-party mandate.";
+                case "party-id-required":
+                    return "A party Id is required.";
+                case "party-not-found":
+                    return "The requested party was not found in this kingdom.";
+                case "party-inactive":
+                    return "The requested party is inactive.";
+                default:
+                    return "The operation was rejected.";
             }
-            return null;
+        }
+
+        private static ActionInfo ConvertAction(
+            Main.ScenarioBridge.KingdomActionInfo item
+        )
+        {
+            if (item == null)
+            {
+                return null;
+            }
+            return new ActionInfo()
+            {
+                Id = item.Id,
+                Category = item.Category,
+                NameKey = item.NameKey,
+                DescriptionKey = item.DescriptionKey,
+                DisplayName = item.DisplayName,
+                Description = item.Description,
+                Source = item.Source,
+                Icon = item.Icon,
+                SortOrder = item.SortOrder,
+                Enabled = item.Enabled
+            };
+        }
+
+        private static List<ActionInfo> ConvertActions(
+            List<Main.ScenarioBridge.KingdomActionInfo> source
+        )
+        {
+            List<ActionInfo> result = new List<ActionInfo>();
+            if (source == null)
+            {
+                return result;
+            }
+            for (int i = 0; i < source.Count; i++)
+            {
+                ActionInfo info = ConvertAction(source[i]);
+                if (info != null)
+                {
+                    result.Add(info);
+                }
+            }
+            return result;
         }
 
         private static PartyInfo ConvertParty(Main.ScenarioBridge.PartyInfo item)
@@ -1265,6 +1684,10 @@ namespace Lous12.PoliticalWorld
                 RootId = item.RootId,
                 NameKey = item.NameKey,
                 DisplayName = item.DisplayName,
+                DescriptionKey = item.DescriptionKey,
+                Description = item.Description,
+                Icon = item.Icon,
+                SortOrder = item.SortOrder,
                 Source = item.Source,
                 Tier = item.Tier,
                 Tags = item.Tags == null ? new string[0] : (string[])item.Tags.Clone()

@@ -653,7 +653,7 @@ namespace Lous12.PoliticalWorld
 
             for (int c = 0; c < cities.Count && inspected < 240; c++)
             {
-                List<Actor> units = GetCityUnitsSafe(cities[c]);
+                List<Actor> units = GetCityUnitsSafe(cities[c], 240 - inspected);
 
                 for (int i = 0; i < units.Count && inspected < 240; i++)
                 {
@@ -1187,7 +1187,7 @@ namespace Lous12.PoliticalWorld
 
             for (int c = 0; c < cities.Count && inspected < 120; c++)
             {
-                List<Actor> units = GetCityUnitsSafe(cities[c]);
+                List<Actor> units = GetCityUnitsSafe(cities[c], 120 - inspected);
 
                 for (int i = 0; i < units.Count && inspected < 120; i++)
                 {

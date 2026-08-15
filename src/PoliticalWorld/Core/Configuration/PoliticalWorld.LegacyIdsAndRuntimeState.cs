@@ -440,6 +440,34 @@ namespace Lous12.PoliticalWorld
             BindingFlags.Public |
             BindingFlags.NonPublic;
 
+        // Reflection/member-name constants used by hot helper paths. Keeping
+        // these arrays static avoids tiny but frequent params/array allocations.
+        private static readonly string[] KingdomManagerCollectionMemberNames =
+        {
+            "list", "_list", "list_civs", "list_civ", "list_all",
+            "kingdoms", "_kingdoms", "all_kingdoms", "civs"
+        };
+        private static readonly string[] KingdomCityCollectionMemberNames =
+        {
+            "cities", "_cities", "list_cities", "city_list", "settlements"
+        };
+        private static readonly string[] KingdomUnitCollectionMemberNames =
+        {
+            "units", "_units", "list_units", "actors", "citizens", "_citizens"
+        };
+        private static readonly string[] KingdomAccessorMemberNames =
+        {
+            "kingdom", "_kingdom"
+        };
+        private static readonly string[] CityDataMemberNames =
+        {
+            "data", "_data"
+        };
+        private static readonly string[] CityStorageMemberNames =
+        {
+            "storage", "_storage"
+        };
+
 
         private static readonly Dictionary<Kingdom, string>
             LastKnownKingdomCourses =
@@ -549,6 +577,16 @@ namespace Lous12.PoliticalWorld
             KingdomPropertyAccessorCache = new Dictionary<Type, PropertyInfo>();
         private static readonly HashSet<Type> KingdomAccessorMissingCache =
             new HashSet<Type>();
+
+        // City storage reflection is used by the 10-second economy tick and
+        // bloc/war compensation. Resolve the compatible change(string, amount)
+        // overload once per runtime storage type instead of scanning methods
+        // for every resource delta.
+        private static readonly Dictionary<Type, MethodInfo>
+            CityStorageChangeMethodCache = new Dictionary<Type, MethodInfo>();
+        private static readonly HashSet<Type>
+            CityStorageChangeMethodMissingCache = new HashSet<Type>();
+
         private static readonly Dictionary<Kingdom, string>
             FastKingdomCourseCache = new Dictionary<Kingdom, string>();
         private static readonly Dictionary<Kingdom, float>
