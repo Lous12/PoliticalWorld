@@ -540,3 +540,156 @@ code {
   .community-main { min-height: 260px; }
   .footer { flex-direction: column; align-items: flex-start; padding-left: 0.25rem; padding-right: 0.25rem; }
 }
+
+
+/* V3: native subpages, support and documentation hub */
+.support-nav { color: #ffd18a !important; }
+.link-button { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+.link-button:hover { text-decoration: none; }
+.support-menu { border-top: 1px solid rgba(148, 197, 255, 0.10); margin-top: 0.35rem; }
+
+.support-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+.support-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+  min-height: 190px;
+}
+.support-card.donation-alerts {
+  background:
+    radial-gradient(circle at 100% 0, rgba(255, 87, 137, 0.15), transparent 19rem),
+    var(--panel);
+}
+.support-card.dalink {
+  background:
+    radial-gradient(circle at 100% 0, rgba(159, 108, 255, 0.15), transparent 19rem),
+    var(--panel);
+}
+.support-icon {
+  width: 3.6rem;
+  height: 3.6rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 1rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #ff5f94, #8c5dff);
+  box-shadow: 0 12px 24px rgba(108, 72, 180, 0.20);
+}
+.support-card h3 { margin-top: 0; }
+.support-card p { margin-bottom: 1rem; }
+.support-note {
+  margin: 0.85rem 0 0;
+  color: var(--muted);
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.subpage { min-height: calc(100vh - 160px); }
+.subpage-hero {
+  margin-top: 0.8rem;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  background:
+    radial-gradient(circle at 90% 0, rgba(159, 108, 255, 0.13), transparent 22rem),
+    linear-gradient(135deg, rgba(79,155,255,0.065), rgba(159,108,255,0.045));
+}
+.subpage-hero h1 {
+  margin: 0;
+  font-size: clamp(2.2rem, 5vw, 3.6rem);
+  letter-spacing: -0.04em;
+}
+.first-section { margin-top: 1.4rem; }
+.native-page-card { min-height: 280px; }
+
+.empty-catalog {
+  padding: 2.2rem 1.2rem;
+  text-align: center;
+  border-radius: 1.15rem;
+  border: 1px dashed rgba(148, 197, 255, 0.25);
+  background: rgba(255,255,255,0.025);
+}
+.empty-icon { font-size: 2.4rem; }
+.empty-catalog h3 { margin: 0.7rem 0 0.4rem; }
+.empty-catalog p { color: var(--muted); }
+
+.notice-card {
+  margin-top: 1rem;
+  padding: 1rem 1.05rem;
+  border-left: 3px solid var(--orange);
+  border-radius: 0.85rem;
+  background: rgba(246, 169, 59, 0.065);
+  color: #dce6f4;
+}
+.notice-card p { margin: 0.35rem 0 0; color: #cbd8ea; line-height: 1.62; }
+
+.steps-list {
+  display: grid;
+  gap: 0.7rem;
+}
+.step-row {
+  display: grid;
+  grid-template-columns: 2.35rem minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: start;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  background: rgba(255,255,255,0.03);
+}
+.step-row > span {
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  color: #fff;
+  background: linear-gradient(135deg, #3c92ff, #845aff);
+}
+.step-row p { margin: 0.35rem 0 0; color: #cbd8ea; line-height: 1.55; }
+
+.docs-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+.docs-language {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+.docs-lang-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-bottom: 0.65rem;
+  margin-bottom: 0.35rem;
+  border-bottom: 1px solid var(--border);
+}
+.docs-lang-head span { font-size: 1.8rem; }
+.docs-lang-head h2 { margin: 0; }
+.docs-language > a {
+  color: #dbeaff;
+  padding: 0.62rem 0.7rem;
+  border-radius: 0.72rem;
+}
+.docs-language > a:hover {
+  background: rgba(255,255,255,0.055);
+  text-decoration: none;
+}
+
+@media (max-width: 850px) {
+  .support-grid, .docs-columns { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .support-card { grid-template-columns: 1fr; }
+  .subpage-hero { padding: 1rem; border-radius: 0.95rem; }
+}

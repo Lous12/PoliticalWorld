@@ -40,7 +40,7 @@ Large gameplay additions may be less frequent while the framework is being expan
 - [API 1.9 Reference](docs/en/API_REFERENCE_1_9.md)
 - [Framework Vision](docs/en/FRAMEWORK_VISION.md)
 - [What can you build?](docs/en/what-you-can-build.md)
-- [Community Addons](docs/en/community-addons.md)
+- [Community Addons](https://lous12.github.io/PoliticalWorld/en/community-addons.html)
 - [Discussions](https://github.com/Lous12/PoliticalWorld/discussions)
 
 ## For players
@@ -56,6 +56,14 @@ The next direction is to make more of those building blocks useful outside polit
 ## Community
 
 Creators can ask questions, show WIP projects, request API capabilities and submit addons for compatibility testing through GitHub Discussions.
+
+
+## Support the project
+
+Political World, the Public API and documentation remain free. If you want to voluntarily support further development:
+
+- [DonationAlerts](https://www.donationalerts.com/r/lous12)
+- [DALink](https://dalink.to/lous12)
 
 ## License
 

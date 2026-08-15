@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#08111f">
+  <title>Community Addons — Political World</title>
+  <meta name="description" content="Community Addons — Political World">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="../index.html">
+      <span class="brand-pill">PW</span>
+      <span class="brand-text">
+        <strong>Political World</strong>
+        <small>Politics • API • Framework</small>
+      </span>
+    </a>
+
+    <nav class="desktop-nav">
+      <a href="../index.html">Home</a>
+      <a href="../docs.html">Docs</a>
+      <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3780484869">Steam</a>
+      <a href="https://github.com/Lous12/PoliticalWorld/discussions">Discussions</a>
+      <a class="support-nav" href="../index.html#support">Support</a>
+    </nav>
+
+    <div class="header-actions">
+      <a class="lang-toggle link-button" href="../ru/community-addons.html">RU</a>
+      <button class="menu-toggle" id="menuToggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <aside class="mobile-menu" id="mobileMenu" aria-hidden="true">
+    <div class="mobile-menu-inner">
+      <div class="mobile-menu-head">
+        <div>
+          <strong>Political World</strong>
+          <small>Everything in one menu</small>
+        </div>
+        <button class="menu-close" id="menuClose" type="button" aria-label="Close menu">×</button>
+      </div>
+
+      <div class="menu-section">
+        <span class="menu-label">Project</span>
+        <a href="../index.html">Home</a>
+        <a href="../index.html#status">Status</a>
+        <a href="../index.html#roadmap">Roadmap</a>
+        <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3780484869">Steam Workshop</a>
+        <a href="https://github.com/Lous12/PoliticalWorld">GitHub</a>
+      </div>
+
+      <div class="menu-section">
+        <span class="menu-label">Build</span>
+        <a href="../docs.html">Documentation</a>
+        <a href="https://github.com/Lous12/PoliticalWorld/blob/main/docs/en/GETTING_STARTED.md">Getting Started</a>
+        <a href="https://github.com/Lous12/PoliticalWorld/blob/main/docs/en/API_REFERENCE_1_9.md">API 1.9</a>
+        <a href="https://github.com/Lous12/PoliticalWorld/blob/main/docs/en/FRAMEWORK_VISION.md">Framework Vision</a>
+        <a href="https://github.com/Lous12/PoliticalWorld/tree/main/templates">Templates</a>
+        <a href="https://github.com/Lous12/PoliticalWorld/tree/main/examples">Examples</a>
+      </div>
+
+      <div class="menu-section">
+        <span class="menu-label">Community</span>
+        <a href="https://github.com/Lous12/PoliticalWorld/discussions/categories/addon-testing">Addon Testing</a>
+        <a href="https://github.com/Lous12/PoliticalWorld/discussions">GitHub Discussions</a>
+        <a href="community-addons.html">Community Addons</a>
+      </div>
+
+      <div class="menu-section support-menu">
+        <span class="menu-label">Support the project</span>
+        <a href="https://www.donationalerts.com/r/lous12">DonationAlerts</a>
+        <a href="https://dalink.to/lous12">DALink</a>
+      </div>
+    </div>
+  </aside>
+  <div class="menu-backdrop" id="menuBackdrop"></div>
+
+  <main class="page subpage">
+    <section class="subpage-hero">
+      <span class="eyebrow">Community</span>
+      <h1>Community Addons</h1>
+    </section>
+    
+<section class="section first-section">
+  <div class="community-layout">
+    <article class="card community-main native-page-card">
+      <div>
+        <span class="pill subtle">Verified addon catalog</span>
+        <h2>No verified community addons are listed yet</h2>
+        <p>That is completely fine. Projects will appear here after compatibility testing on a supported Political World setup.</p>
+        <p>The catalog is not a ranking. Its purpose is to give players a clear place to discover addons that have been checked on a supported setup.</p>
+      </div>
+      <div class="community-actions">
+        <a class="btn primary small" href="https://github.com/Lous12/PoliticalWorld/discussions/categories/addon-testing">Submit an addon for testing</a>
+        <a class="btn small" href="https://github.com/Lous12/PoliticalWorld/discussions">Open Discussions</a>
+      </div>
+    </article>
+
+    <div class="community-side">
+      <article class="card mini-card">
+        <span class="mini-icon">✅</span>
+        <div>
+          <h3>What “verified” means</h3>
+          <p>The addon launched on a supported setup and its main advertised feature was manually checked.</p>
+        </div>
+      </article>
+      <article class="card mini-card">
+        <span class="mini-icon">🧪</span>
+        <div>
+          <h3>Addon Testing</h3>
+          <p>The main submission path is the Addon Testing category in GitHub Discussions.</p>
+        </div>
+      </article>
+      <article class="card mini-card">
+        <span class="mini-icon">🧩</span>
+        <div>
+          <h3>Public API first</h3>
+          <p>Whenever possible, addons should use the public <code>PoliticalWorldAPI</code> instead of internal mod classes.</p>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-heading">
+    <div>
+      <span class="eyebrow">Catalog</span>
+      <h2>Verified addons</h2>
+    </div>
+    <span class="status-live"><span class="status-dot"></span>0 addons</span>
+  </div>
+
+  <div class="empty-catalog">
+    <div class="empty-icon">📦</div>
+    <h3>Nothing here yet</h3>
+    <p>The first verified project will appear here after testing.</p>
+    <a class="text-link" href="https://github.com/Lous12/PoliticalWorld/discussions/categories/addon-testing">Submit your addon →</a>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-heading">
+    <div>
+      <span class="eyebrow">Verification</span>
+      <h2>What we actually check</h2>
+    </div>
+  </div>
+  <div class="grid three">
+    <article class="card feature-card">
+      <div class="card-icon">🔗</div>
+      <h3>Dependencies</h3>
+      <p>Links, required Political World / API versions and other declared dependencies are checked.</p>
+    </article>
+    <article class="card feature-card">
+      <div class="card-icon">▶️</div>
+      <h3>Launch</h3>
+      <p>The addon is installed on a supported setup, the game is launched and the log is checked for obvious addon errors.</p>
+    </article>
+    <article class="card feature-card">
+      <div class="card-icon">🎯</div>
+      <h3>Main feature</h3>
+      <p>The main advertised feature is tested before the addon can be listed in the catalog.</p>
+    </article>
+  </div>
+  <div class="notice-card">
+    <strong>Important:</strong>
+    <p>“Verified” is not a security certificate, a permanent compatibility guarantee or a promise that the addon has no bugs. WorldBox, NeoModLoader and Political World updates can change compatibility.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-heading">
+    <div>
+      <span class="eyebrow">For addon authors</span>
+      <h2>How to submit an addon</h2>
+    </div>
+  </div>
+  <div class="steps-list">
+    <div class="step-row"><span>1</span><p>Open the <strong>Addon Testing</strong> category in GitHub Discussions.</p></div>
+    <div class="step-row"><span>2</span><p>Provide the addon name, author, short description, download link and source link if available.</p></div>
+    <div class="step-row"><span>3</span><p>List the required Political World and <strong>PoliticalWorldAPI 1.9+</strong> versions and other dependencies.</p></div>
+    <div class="step-row"><span>4</span><p>Briefly describe the main feature that should be checked in-game.</p></div>
+  </div>
+  <div class="inline-actions">
+    <a class="btn primary" href="https://github.com/Lous12/PoliticalWorld/discussions/categories/addon-testing">Open Addon Testing</a>
+    <a class="btn" href="https://github.com/Lous12/PoliticalWorld/blob/main/docs/en/GETTING_STARTED.md">Getting Started</a>
+    <a class="btn" href="https://github.com/Lous12/PoliticalWorld/blob/main/docs/en/API_REFERENCE_1_9.md">API 1.9</a>
+  </div>
+</section>
+
+  </main>
+
+  <footer class="footer">
+    <div>
+      <strong>Political World</strong>
+      <p>Politics mod • Public API • Addon Framework</p>
+    </div>
+    <div class="footer-links">
+      <a href="https://github.com/Lous12/PoliticalWorld">GitHub</a>
+      <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3780484869">Steam</a>
+      <a href="https://github.com/Lous12/PoliticalWorld/discussions">Discussions</a>
+      <a href="https://www.donationalerts.com/r/lous12">DonationAlerts</a>
+      <a href="https://dalink.to/lous12">DALink</a>
+    </div>
+  </footer>
+
+  <script src="../page.js"></script>
+</body>
+</html>

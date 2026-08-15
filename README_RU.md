@@ -40,7 +40,7 @@ Political World — это одновременно мод про политик
 - [Справочник API 1.9](docs/ru/API_REFERENCE_1_9.md)
 - [Куда развивается API](docs/ru/FRAMEWORK_VISION.md)
 - [Что можно создавать?](docs/ru/what-you-can-build.md)
-- [Аддоны сообщества](docs/ru/community-addons.md)
+- [Аддоны сообщества](https://lous12.github.io/PoliticalWorld/ru/community-addons.html)
 - [Discussions](https://github.com/Lous12/PoliticalWorld/discussions)
 
 ## Для игроков
@@ -56,6 +56,14 @@ Public API уже умеет регистрировать аддоны, подс
 ## Сообщество
 
 Через GitHub Discussions можно задавать вопросы, показывать WIP, просить новые возможности для API и отправлять аддоны на проверку совместимости.
+
+
+## Поддержать проект
+
+Political World, Public API и документация остаются бесплатными. Если хочется добровольно поддержать дальнейшую разработку:
+
+- [DonationAlerts](https://www.donationalerts.com/r/lous12)
+- [DALink](https://dalink.to/lous12)
 
 ## Лицензия
 
