@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Political World — Politics & Addon Framework</title>
+  <meta name="description" content="Political World for WorldBox: politics mod, public API and addon framework.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#home">
+      <span class="brand-pill">PW</span>
+      <span class="brand-text">
+        <strong>Political World</strong>
+        <small>Politics • API • Framework</small>
+      </span>
+    </a>
+
+    <nav class="desktop-nav">
+      <a href="#overview">Overview</a>
+      <a href="#players">Players</a>
+      <a href="#creators">Creators</a>
+      <a href="#links">Links</a>
+    </nav>
+
+    <button class="menu-toggle" id="menuToggle" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu">
+      <span></span><span></span><span></span>
+    </button>
+  </header>
+
+  <aside class="mobile-menu" id="mobileMenu">
+    <div class="mobile-menu-inner">
+      <div class="mobile-menu-title">Navigation</div>
+      <a href="#overview">Overview</a>
+      <a href="#players">For players</a>
+      <a href="#creators">For creators</a>
+      <a href="#links">Quick links</a>
+      <a href="en/GETTING_STARTED.md">Getting Started</a>
+      <a href="en/API_REFERENCE_1_9.md">API 1.9</a>
+      <a href="en/FRAMEWORK_VISION.md">Framework Vision</a>
+      <a href="ru/GETTING_STARTED.md">Первый аддон</a>
+      <a href="ru/API_REFERENCE_1_9.md">API 1.9 RU</a>
+      <a href="ru/FRAMEWORK_VISION.md">Видение фреймворка</a>
+      <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3780484869">Steam Workshop</a>
+      <a href="https://github.com/Lous12/PoliticalWorld">GitHub</a>
+      <a href="https://github.com/Lous12/PoliticalWorld/discussions">Discussions</a>
+    </div>
+  </aside>
+  <div class="menu-backdrop" id="menuBackdrop"></div>
+
+  <main id="home" class="page">
+    <section class="hero">
+      <img class="hero-banner" src="assets/hero-banner.png" alt="Political World hero banner">
+      <div class="hero-text">
+        <h1>Political World</h1>
+        <p class="lead">A politics mod for WorldBox and a growing addon framework built around <code>PoliticalWorldAPI</code>.</p>
+        <div class="hero-actions">
+          <a class="btn primary" href="https://steamcommunity.com/sharedfiles/filedetails/?id=3780484869">Open on Steam</a>
+          <a class="btn" href="https://github.com/Lous12/PoliticalWorld">Open GitHub</a>
+          <a class="btn" href="https://github.com/Lous12/PoliticalWorld/discussions">Discussions</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="overview" class="section">
+      <h2>One project, two directions</h2>
+      <div class="grid two">
+        <article class="card">
+          <h3>🎮 For players</h3>
+          <ul>
+            <li>Ideologies and currents</li>
+            <li>Political parties and leaders</li>
+            <li>Governments and elections</li>
+            <li>Crises, coups and revolutions</li>
+            <li>International blocs and summits</li>
+            <li>War preparation and Political Map</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>🧩 For creators</h3>
+          <ul>
+            <li>Public API 1.9</li>
+            <li>Addon registration and validation</li>
+            <li>Localization fallback</li>
+            <li>Data, tags and diagnostics</li>
+            <li>Event Bus, Actions, Rare Events</li>
+            <li>Conditions, Effects and political registries</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="players" class="section">
+      <h2>Quick path for players</h2>
+      <div class="grid three">
+        <article class="card">
+          <h3>Steam Workshop</h3>
+          <p>Install the latest public version of Political World.</p>
+          <a class="text-link" href="https://steamcommunity.com/sharedfiles/filedetails/?id=3780484869">Go to Workshop →</a>
+        </article>
+        <article class="card">
+          <h3>Public Beta status</h3>
+          <p>Current stack: Political World 1.7 • Public API 1.9 • WorldBox 0.51.2 • NeoModLoader 1.2.0.1.</p>
+        </article>
+        <article class="card">
+          <h3>Need help?</h3>
+          <p>If something crashes, please report versions, mod list and Player.log.</p>
+          <a class="text-link" href="https://github.com/Lous12/PoliticalWorld/discussions">Open Discussions →</a>
+        </article>
+      </div>
+    </section>
+
+    <section id="creators" class="section">
+      <h2>Quick path for creators</h2>
+      <div class="grid three">
+        <article class="card">
+          <h3>Start here</h3>
+          <p>Make your first addon with the template and quick-start docs.</p>
+          <a class="text-link" href="en/GETTING_STARTED.md">English quick start →</a><br>
+          <a class="text-link" href="ru/GETTING_STARTED.md">Русский быстрый старт →</a>
+        </article>
+        <article class="card">
+          <h3>Understand the direction</h3>
+          <p>See why PoliticalWorldAPI is being expanded beyond one politics-only use case.</p>
+          <a class="text-link" href="en/FRAMEWORK_VISION.md">Framework Vision →</a><br>
+          <a class="text-link" href="ru/FRAMEWORK_VISION.md">Видение фреймворка →</a>
+        </article>
+        <article class="card">
+          <h3>Use the API</h3>
+          <p>Read the tested API 1.9 reference and build on stable public entry points.</p>
+          <a class="text-link" href="en/API_REFERENCE_1_9.md">API 1.9 EN →</a><br>
+          <a class="text-link" href="ru/API_REFERENCE_1_9.md">API 1.9 RU →</a>
+        </article>
+      </div>
+    </section>
+
+    <section id="links" class="section">
+      <h2>Everything in one place</h2>
+      <div class="link-groups">
+        <article class="card">
+          <h3>Main links</h3>
+          <ul class="plain">
+            <li><a href="https://github.com/Lous12/PoliticalWorld">GitHub repository</a></li>
+            <li><a href="https://lous12.github.io/PoliticalWorld/">Project website</a></li>
+            <li><a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3780484869">Steam Workshop</a></li>
+            <li><a href="https://github.com/Lous12/PoliticalWorld/discussions">GitHub Discussions</a></li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>Docs</h3>
+          <ul class="plain">
+            <li><a href="en/README.md">English docs index</a></li>
+            <li><a href="ru/README.md">Русская документация</a></li>
+            <li><a href="en/what-you-can-build.md">What can you build?</a></li>
+            <li><a href="ru/what-you-can-build.md">Что можно создавать?</a></li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>Community</h3>
+          <ul class="plain">
+            <li><a href="en/community-addons.md">Community Addons</a></li>
+            <li><a href="ru/community-addons.md">Аддоны сообщества</a></li>
+            <li><a href="https://github.com/Lous12/PoliticalWorld/discussions/categories/addon-testing">Addon Testing</a></li>
+          </ul>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p><strong>Political World</strong> — Politics mod • Public API • Addon Framework</p>
+    <p><a href="https://github.com/Lous12/PoliticalWorld">GitHub</a> · <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3780484869">Steam</a> · <a href="https://github.com/Lous12/PoliticalWorld/discussions">Discussions</a></p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
