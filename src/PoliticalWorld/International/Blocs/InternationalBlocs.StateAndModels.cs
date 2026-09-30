@@ -67,6 +67,14 @@ namespace Lous12.PoliticalWorld
         private static readonly Dictionary<string, InternationalBlocSnapshot>
             InternationalBlocs = new Dictionary<string, InternationalBlocSnapshot>();
         private static int _lastInternationalBlocUpdateYear = int.MinValue;
+        // v1.9.0-dev1: cached capital spread for distance-aware bloc politics.
+        // Rebuilt once per political year and whenever a world is reset.
+        private static bool _internationalBlocGeographyCacheValid;
+        private static int _internationalBlocGeographyMinX;
+        private static int _internationalBlocGeographyMaxX;
+        private static int _internationalBlocGeographyMinY;
+        private static int _internationalBlocGeographyMaxY;
+        private static int _internationalBlocGeographyKingdomCount;
         private static readonly Dictionary<string, InternationalSummitSnapshot>
             ActiveInternationalSummits = new Dictionary<string, InternationalSummitSnapshot>();
         private static float _nextInternationalSummitCleanupTime;

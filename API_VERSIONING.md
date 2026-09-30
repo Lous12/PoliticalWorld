@@ -1,36 +1,13 @@
-# Public API versioning
+# PoliticalWorldAPI versioning
 
-Political World core and PoliticalWorldAPI are versioned independently.
+Current public API: **1.19.0**  
+Current Political World release: **1.11.0**
 
-Current candidate:
-- Core: `1.7.0`
-- Public API: `1.6.0`
+PoliticalWorldAPI uses a major/minor compatibility model.
 
-## Compatibility rule
+- Major changes are reserved for breaking compatibility.
+- Minor releases add public capabilities while preserving existing contracts where practical.
+- Addons should declare the minimum API version they actually require.
+- Internal Political World classes are not part of the compatibility contract.
 
-For API 1.x:
-- major = breaking public contract;
-- minor = backward-compatible public additions;
-- patch = fixes that do not intentionally break documented public contracts.
-
-An addon should request the minimum API it needs:
-
-```csharp
-if (!PoliticalWorldAPI.IsCompatible(1, 6)) return;
-```
-
-For optional functionality, prefer:
-
-```csharp
-PoliticalWorldAPI.HasCapability("political-event.rare")
-```
-
-Internal classes and folder layout are not covered by API compatibility guarantees.
-
-## Deprecation
-
-Before removing a public 1.x member, prefer to:
-1. add the replacement;
-2. document the old member as deprecated;
-3. keep the old member functional for a migration window when practical;
-4. remove it only in a future breaking major API unless there is a severe correctness/safety reason.
+For the current surface, see [API 1.19 Reference](docs/en/API_REFERENCE_1_19.md) or the canonical source under `src/PoliticalWorld/API/`.

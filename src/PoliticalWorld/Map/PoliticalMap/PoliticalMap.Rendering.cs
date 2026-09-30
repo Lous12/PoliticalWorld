@@ -591,12 +591,11 @@ namespace Lous12.PoliticalWorld
                     out parties
                 ))
             {
-                // Map rendering is presentation-only: avoid GetPoliticalParties
-                // here because that function also writes support-history
-                // snapshots. Loading the active slots is enough for local
-                // support calculations and keeps map drawing side-effect free.
+                // Map rendering is presentation-only. Use the read-only party
+                // loader so drawing cannot trigger save migrations or history writes.
                 parties = LoadPoliticalPartiesInternal(
                     kingdom,
+                    false,
                     false
                 );
                 PoliticalMapPartyCache[kingdom] = parties;
@@ -772,6 +771,16 @@ namespace Lous12.PoliticalWorld
                     meta.data.name = pName ?? "";
                 }
                 return meta;
+            }
+
+            // Party identities are intentionally unique, so centuries of
+            // splits/successor states can otherwise grow this cache forever.
+            // These objects are presentation-only and safe to rebuild.
+            if (PoliticalMapMetaCache.Count >= PoliticalMapMetaCacheLimit)
+            {
+                PoliticalMapMetaCache.Clear();
+                PoliticalMapCityVisualCache.Clear();
+                PoliticalMapPartyCache.Clear();
             }
 
             ColorAsset color = GetPoliticalMapColorAsset(pColor);

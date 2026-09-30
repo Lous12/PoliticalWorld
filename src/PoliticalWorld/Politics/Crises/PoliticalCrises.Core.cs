@@ -16,58 +16,196 @@ namespace Lous12.PoliticalWorld
 {
     public partial class Main
     {
+        // PARENT CORE FIX3: Player(10).log proved that Political World can
+        // terminate with Grand Strategy completely absent. The last completed
+        // operation was party pass serial=5, so stage 4 (political crises) is
+        // now processed from a stable snapshot one kingdom per rendered frame.
+        // This also gives us a hard boundary in Player.log for native failures.
+        private static List<Kingdom> CrisisUpdateKingdomSnapshot =
+            new List<Kingdom>();
+        private static int CrisisUpdateKingdomIndex;
+        private static bool CrisisUpdatePassActive;
+        private static int CrisisUpdatePassSerial;
+
+        private static void ResetPoliticalCrisisUpdatePass()
+        {
+            CrisisUpdateKingdomSnapshot.Clear();
+            CrisisUpdateKingdomIndex = 0;
+            CrisisUpdatePassActive = false;
+        }
+
+        // Returns true only when all kingdoms in the snapshot have been
+        // processed. Runtime stage 4 stays active while this returns false.
+        private static bool UpdatePoliticalCrisesIncremental()
+        {
+            if (!CrisisUpdatePassActive)
+            {
+                CrisisUpdateKingdomSnapshot = GetKingdomsSafe();
+                CrisisUpdateKingdomIndex = 0;
+                CrisisUpdatePassActive = true;
+                CrisisUpdatePassSerial++;
+
+                if (VerbosePoliticalDiagnostics)
+                {
+                    LogInfo(
+                        "[PW-CRISIS-GUARD] pass begin serial=" +
+                        CrisisUpdatePassSerial +
+                        " kingdoms=" + CrisisUpdateKingdomSnapshot.Count
+                    );
+                }
+            }
+
+            if (IsWorldTopologySettling())
+            {
+                if (VerbosePoliticalDiagnostics)
+                {
+                    LogInfo(
+                        "[PW-CRISIS-GUARD] pass cancelled by topology settle serial=" +
+                        CrisisUpdatePassSerial
+                    );
+                }
+                ResetPoliticalCrisisUpdatePass();
+                return true;
+            }
+
+            if (CrisisUpdateKingdomIndex >= CrisisUpdateKingdomSnapshot.Count)
+            {
+                if (VerbosePoliticalDiagnostics)
+                {
+                    LogInfo(
+                        "[PW-CRISIS-GUARD] pass complete serial=" +
+                        CrisisUpdatePassSerial
+                    );
+                }
+                ResetPoliticalCrisisUpdatePass();
+                return true;
+            }
+
+            int currentIndex = CrisisUpdateKingdomIndex;
+            Kingdom kingdom = CrisisUpdateKingdomSnapshot[currentIndex];
+            CrisisUpdateKingdomIndex++;
+
+            string kingdomName = "<null>";
+            if (kingdom != null)
+            {
+                try
+                {
+                    kingdomName = GetWorldObjectDisplayName(kingdom);
+                }
+                catch
+                {
+                    kingdomName = "<unreadable>";
+                }
+            }
+
+            if (VerbosePoliticalDiagnostics)
+            {
+                LogInfo(
+                    "[PW-CRISIS-GUARD] kingdom begin serial=" +
+                    CrisisUpdatePassSerial +
+                    " index=" + currentIndex +
+                    " name=" + kingdomName
+                );
+            }
+
+            try
+            {
+                UpdatePoliticalCrisisForKingdom(kingdom);
+            }
+            catch (Exception exception)
+            {
+                LogWarning(
+                    "[PW-CRISIS-GUARD] kingdom failed serial=" +
+                    CrisisUpdatePassSerial +
+                    " index=" + currentIndex +
+                    " name=" + kingdomName +
+                    " exception=" + exception
+                );
+            }
+
+            if (VerbosePoliticalDiagnostics)
+            {
+                LogInfo(
+                    "[PW-CRISIS-GUARD] kingdom end serial=" +
+                    CrisisUpdatePassSerial +
+                    " index=" + currentIndex +
+                    " name=" + kingdomName
+                );
+            }
+
+            if (CrisisUpdateKingdomIndex >= CrisisUpdateKingdomSnapshot.Count)
+            {
+                if (VerbosePoliticalDiagnostics)
+                {
+                    LogInfo(
+                        "[PW-CRISIS-GUARD] pass complete serial=" +
+                        CrisisUpdatePassSerial
+                    );
+                }
+                ResetPoliticalCrisisUpdatePass();
+                return true;
+            }
+
+            return false;
+        }
+
+        // Retained for internal callers/tests. Runtime uses the incremental
+        // variant above so world mutations are never followed by a full crisis
+        // scan in the same rendered frame.
         private static void UpdatePoliticalCrises()
         {
             List<Kingdom> kingdoms = GetKingdomsSafe();
-
             for (int k = 0; k < kingdoms.Count; k++)
             {
-                Kingdom kingdom = kingdoms[k];
+                UpdatePoliticalCrisisForKingdom(kingdoms[k]);
+            }
+        }
 
-                if (kingdom == null || kingdom.data == null)
-                {
-                    continue;
-                }
+        private static void UpdatePoliticalCrisisForKingdom(Kingdom kingdom)
+        {
+            if (kingdom == null || kingdom.data == null)
+            {
+                return;
+            }
 
-                int cooldown = GetKingdomIntData(
+            int cooldown = GetKingdomIntData(
+                kingdom,
+                CrisisCooldownDataKey,
+                0
+            );
+
+            if (cooldown > 0)
+            {
+                SetKingdomIntData(
                     kingdom,
                     CrisisCooldownDataKey,
-                    0
+                    cooldown - 1
                 );
-
-                if (cooldown > 0)
-                {
-                    SetKingdomIntData(
-                        kingdom,
-                        CrisisCooldownDataKey,
-                        cooldown - 1
-                    );
-                }
-
-                if (
-                    GetKingdomIntData(
-                        kingdom,
-                        CrisisInitializedDataKey,
-                        0
-                    ) == 0
-                )
-                {
-                    SetKingdomIntData(
-                        kingdom,
-                        CrisisInitializedDataKey,
-                        1
-                    );
-                    continue;
-                }
-
-                if (!IsPoliticalCrisisActive(kingdom))
-                {
-                    TryStartPoliticalCrisis(kingdom);
-                    continue;
-                }
-
-                UpdateActivePoliticalCrisis(kingdom);
             }
+
+            if (
+                GetKingdomIntData(
+                    kingdom,
+                    CrisisInitializedDataKey,
+                    0
+                ) == 0
+            )
+            {
+                SetKingdomIntData(
+                    kingdom,
+                    CrisisInitializedDataKey,
+                    1
+                );
+                return;
+            }
+
+            if (!IsPoliticalCrisisActive(kingdom))
+            {
+                TryStartPoliticalCrisis(kingdom);
+                return;
+            }
+
+            UpdateActivePoliticalCrisis(kingdom);
         }
 
         private static void TryStartPoliticalCrisis(Kingdom kingdom)
@@ -150,7 +288,33 @@ namespace Lous12.PoliticalWorld
                 null,
                 GetIdeologyIconPath(ideology),
                 "crisis_started_" + GetMovementKeySuffix(ideology),
-                40f
+                40f,
+                new List<string>
+                {
+                    string.Format(
+                        LM.Get("ukiol_chronicle_detail_crisis_stability"),
+                        stability
+                    ),
+                    string.Format(
+                        LM.Get("ukiol_chronicle_detail_crisis_support"),
+                        support
+                    ),
+                    string.Format(
+                        LM.Get("ukiol_chronicle_detail_crisis_radicalism"),
+                        radicalism
+                    )
+                },
+                new List<string>
+                {
+                    string.Format(
+                        LM.Get("ukiol_chronicle_detail_crisis_demand"),
+                        GetCrisisDemandName(demand)
+                    ),
+                    string.Format(
+                        LM.Get("ukiol_chronicle_detail_crisis_pressure"),
+                        pressure
+                    )
+                }
             );
         }
 
@@ -446,7 +610,7 @@ namespace Lous12.PoliticalWorld
             bool rulerChanged = false;
             if (outcome == "coup" || outcome == "revolution")
             {
-                rulerChanged = TryInstallMovementRuler(
+                rulerChanged = TryInstallPoliticalRuler(
                     kingdom,
                     movementLeader
                 );
@@ -530,6 +694,28 @@ namespace Lous12.PoliticalWorld
                 eventKey = "revolution_" + suffix;
             }
 
+            List<string> regimeConsequences = new List<string>
+            {
+                string.Format(
+                    LM.Get("ukiol_chronicle_detail_regime_ideology"),
+                    ideologyName
+                ),
+                string.Format(
+                    LM.Get("ukiol_chronicle_detail_regime_stability"),
+                    GetNationalStability(kingdom)
+                )
+            };
+
+            if (rulerChanged)
+            {
+                regimeConsequences.Add(
+                    string.Format(
+                        LM.Get("ukiol_chronicle_detail_regime_ruler"),
+                        GetWorldObjectDisplayName(GetLivingRuler(kingdom))
+                    )
+                );
+            }
+
             PublishPoliticalEvent(
                 eventText,
                 kingdom,
@@ -537,7 +723,23 @@ namespace Lous12.PoliticalWorld
                 movementLeader,
                 GetIdeologyIconPath(ideology),
                 eventKey,
-                90f
+                90f,
+                new List<string>
+                {
+                    string.Format(
+                        LM.Get("ukiol_chronicle_detail_crisis_support"),
+                        support
+                    ),
+                    string.Format(
+                        LM.Get("ukiol_chronicle_detail_crisis_radicalism"),
+                        radicalism
+                    ),
+                    string.Format(
+                        LM.Get("ukiol_chronicle_detail_crisis_pressure"),
+                        pressure
+                    )
+                },
+                regimeConsequences
             );
 
             ClearPoliticalCrisisData(kingdom);
@@ -694,7 +896,10 @@ namespace Lous12.PoliticalWorld
             return best;
         }
 
-        private static bool TryInstallMovementRuler(
+        // Shared safe bridge to WorldBox's technical kingdom ruler.
+        // Used only when a political event is explicitly supposed to replace
+        // the person shown by vanilla as the country ruler.
+        private static bool TryInstallPoliticalRuler(
             Kingdom kingdom,
             Actor candidate
         )

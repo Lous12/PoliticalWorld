@@ -1,3 +1,14 @@
+## 1.11.0 — 2026-09-30
+
+- Added monarchy rank progression up to Kingdom and Empire. Suggested by @Asriel.
+- Fixed republican rulers remaining in office after their party lost an election. Reported by @Mauro.
+- Added internal party factions and dynamic party splits.
+- Added ideological evolution for splinter parties.
+- Added political alliances / electoral blocs and coalition-aware election results.
+- Improved long-term party generation. Party-system improvements suggested by @Mars.
+- PoliticalWorldAPI updated to 1.19.0.
+- Added settlement politics, dynamic country naming, separatism integration and related UI/API improvements carried forward from the 1.10 line.
+
 # Changelog
 
 ## 1.7.0 — Public Beta Candidate

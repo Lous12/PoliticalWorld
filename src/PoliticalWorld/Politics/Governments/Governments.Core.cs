@@ -34,8 +34,24 @@ namespace Lous12.PoliticalWorld
                 // quietly. We do not fabricate a historical government event.
                 if (!IsValidGovernmentForm(current))
                 {
+                    if (VerbosePoliticalDiagnostics)
+                    {
+                        LogInfo(
+                            "[PW-GOV-GUARD] initialize begin kingdom=" +
+                            GetWorldObjectDisplayName(kingdom) +
+                            " form=" + desired
+                        );
+                    }
                     SetGovernmentForm(kingdom, desired, false);
                     ResetGovernmentCandidate(kingdom);
+                    if (VerbosePoliticalDiagnostics)
+                    {
+                        LogInfo(
+                            "[PW-GOV-GUARD] initialize end kingdom=" +
+                            GetWorldObjectDisplayName(kingdom) +
+                            " form=" + desired
+                        );
+                    }
                     continue;
                 }
 
@@ -231,12 +247,10 @@ namespace Lous12.PoliticalWorld
                 return form;
             }
 
-            form = DetermineGovernmentForm(kingdom);
-            if (!string.IsNullOrEmpty(form))
-            {
-                SetGovernmentForm(kingdom, form, false);
-            }
-            return form;
+            // Read paths (UI/API/calculations) must not initialize persistent
+            // government data as a side effect. The simulation/update path
+            // persists the derived form explicitly.
+            return DetermineGovernmentForm(kingdom);
         }
 
         private static string GetGovernmentPublicId(Kingdom kingdom)
@@ -298,7 +312,46 @@ namespace Lous12.PoliticalWorld
                 return;
             }
 
-            string previousPublic = GetGovernmentPublicId(kingdom);
+            // GOVERNMENT RECURSION FIX4 / 1.7.1 cleanup:
+            // Never derive previous public government state through a helper
+            // that could depend on the form currently being assigned. Read the
+            // stored value directly; read helpers are now intentionally pure.
+            string previousBase = GetKingdomStringData(
+                kingdom,
+                GovernmentFormDataKey,
+                ""
+            );
+            string previousPublic = previousBase;
+            bool hadValidPreviousGovernment = IsValidGovernmentForm(previousBase);
+
+            if (hadValidPreviousGovernment)
+            {
+                string previousCustom = GetKingdomStringData(
+                    kingdom,
+                    CustomGovernmentFormDataKey,
+                    ""
+                );
+                if (
+                    !string.IsNullOrEmpty(previousCustom) &&
+                    PoliticalWorldAPI.InternalIsRegisteredGovernment(previousCustom)
+                )
+                {
+                    string registeredBase =
+                        PoliticalWorldAPI.InternalGetRegisteredGovernmentBaseId(previousCustom);
+                    if (string.Equals(previousBase, registeredBase, StringComparison.Ordinal))
+                    {
+                        previousPublic = previousCustom;
+                    }
+                }
+            }
+            else
+            {
+                // Initializing a newly-created kingdom is not a historical
+                // government change. Keep both the core API event and the
+                // visible political event quiet for this first assignment.
+                previousPublic = "";
+            }
+
             SetKingdomStringData(kingdom, GovernmentFormDataKey, form);
             SetCustomGovernmentIdentity(kingdom, "");
             SetKingdomIntData(
@@ -307,8 +360,22 @@ namespace Lous12.PoliticalWorld
                 GetWorldYearSafe()
             );
 
+            // Government writes own the corresponding political-system
+            // transition as well. This prevents a read-only getter/UI call from
+            // pre-writing the new system and causing UpdatePoliticalSystems()
+            // to miss the required election/council schedule reset.
+            SynchronizePoliticalSystemState(
+                kingdom,
+                form,
+                GetWorldYearSafe()
+            );
+
             string currentPublic = form;
-            if (!suppressCoreEvent && !string.Equals(previousPublic, currentPublic, StringComparison.Ordinal))
+            if (
+                hadValidPreviousGovernment &&
+                !suppressCoreEvent &&
+                !string.Equals(previousPublic, currentPublic, StringComparison.Ordinal)
+            )
             {
                 PoliticalWorldAPI.InternalEmitCoreEvent(
                     PoliticalWorldAPI.Events.GovernmentChanged,
@@ -318,7 +385,20 @@ namespace Lous12.PoliticalWorld
                 );
             }
 
-            if (publishEvent && !string.Equals(previousPublic, currentPublic, StringComparison.Ordinal))
+            if (
+                hadValidPreviousGovernment &&
+                !suppressCoreEvent &&
+                !string.Equals(previousPublic, currentPublic, StringComparison.Ordinal)
+            )
+            {
+                RefreshPoliticalCountryDisplayName(kingdom);
+            }
+
+            if (
+                hadValidPreviousGovernment &&
+                publishEvent &&
+                !string.Equals(previousPublic, currentPublic, StringComparison.Ordinal)
+            )
             {
                 PublishPoliticalEvent(
                     string.Format(
@@ -438,7 +518,24 @@ namespace Lous12.PoliticalWorld
                 return PoliticalSystemNonElectoralId;
             }
 
+            // Pure read: callers such as UI/API must never silently rewrite
+            // election/council state. The explicit synchronization helper below
+            // owns persistence and schedule resets.
             string form = GetGovernmentForm(kingdom);
+            return DeterminePoliticalSystem(kingdom, form);
+        }
+
+        private static string SynchronizePoliticalSystemState(
+            Kingdom kingdom,
+            string form,
+            int currentYear
+        )
+        {
+            if (kingdom == null || kingdom.data == null)
+            {
+                return PoliticalSystemNonElectoralId;
+            }
+
             string expected = DeterminePoliticalSystem(kingdom, form);
             string stored = GetKingdomStringData(
                 kingdom,
@@ -446,17 +543,21 @@ namespace Lous12.PoliticalWorld
                 ""
             );
 
-            if (stored != expected)
+            if (!string.Equals(stored, expected, StringComparison.Ordinal))
             {
                 SetKingdomStringData(
                     kingdom,
                     PoliticalSystemDataKey,
                     expected
                 );
-                return expected;
+                ResetPoliticalSystemSchedule(
+                    kingdom,
+                    expected,
+                    currentYear
+                );
             }
 
-            return stored;
+            return expected;
         }
 
         private static string GetPoliticalSystemName(string system)
@@ -506,26 +607,11 @@ namespace Lous12.PoliticalWorld
                 }
 
                 string form = GetGovernmentForm(kingdom);
-                string system = DeterminePoliticalSystem(kingdom, form);
-                string previous = GetKingdomStringData(
+                string system = SynchronizePoliticalSystemState(
                     kingdom,
-                    PoliticalSystemDataKey,
-                    ""
+                    form,
+                    currentYear
                 );
-
-                if (previous != system)
-                {
-                    SetKingdomStringData(
-                        kingdom,
-                        PoliticalSystemDataKey,
-                        system
-                    );
-                    ResetPoliticalSystemSchedule(
-                        kingdom,
-                        system,
-                        currentYear
-                    );
-                }
 
                 if (
                     system == PoliticalSystemSovietId ||

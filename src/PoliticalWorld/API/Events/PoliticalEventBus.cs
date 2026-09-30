@@ -28,12 +28,25 @@ namespace Lous12.PoliticalWorld
             public const string PartySupportChanged = "party.support.changed";
             public const string RulerChanged = "kingdom.ruler.changed";
             public const string ElectionFinished = "kingdom.election.finished";
+            public const string CountryNameChanged = "kingdom.country-name.changed";
+            public const string WarStarted = "kingdom.war.started";
+            public const string WarEnded = "kingdom.war.ended";
             public const string PoliticalCrisisStarted = "kingdom.crisis.started";
             public const string PoliticalCrisisEnded = "kingdom.crisis.ended";
+            public const string SettlementSeparatistMovementStarted = "settlement.separatism.movement-started";
+            public const string SettlementAutonomyDemanded = "settlement.separatism.autonomy-demanded";
+            public const string SettlementSecessionCrisisStarted = "settlement.separatism.secession-crisis-started";
+            public const string SettlementSeparatismEnded = "settlement.separatism.ended";
             public const string LeadershipCrisisStarted = "kingdom.leadership-crisis.started";
             public const string LeadershipCrisisResolved = "kingdom.leadership-crisis.resolved";
             public const string RarePoliticalEventFired = "kingdom.rare-political-event.fired";
             public const string PoliticalEventPublished = "political.event.published";
+            // API 1.11 world lifecycle hooks. These are emitted from the
+            // existing Political World runtime loop and therefore add no new
+            // polling coroutine or Update method.
+            public const string WorldChanged = "world.changed";
+            public const string WorldReady = "world.ready";
+            public const string WorldUnavailable = "world.unavailable";
         }
 
         public sealed class PoliticalEventData
@@ -46,6 +59,14 @@ namespace Lous12.PoliticalWorld
             public int OldNumber;
             public int NewNumber;
             public string PartyId;
+            // API 1.15 typed political context. Addons no longer need to
+            // reverse-engineer winner/current/government IDs from EventKey.
+            public string IdeologyId;
+            public string CurrentId;
+            public string GovernmentId;
+            public Kingdom TargetKingdom;
+            public string TargetKingdomName;
+            public string WarSource;
             public Actor Actor;
             public string ActorIdentity;
             public string ActorName;
@@ -56,6 +77,10 @@ namespace Lous12.PoliticalWorld
             public int Year;
             public string Text;
             public string EventKey;
+            // API 1.10 general-framework additions. These fields are optional
+            // for existing political events and populated by custom addon events.
+            public City City;
+            public Dictionary<string, string> Payload;
         }
 
         private sealed class EventSubscription
@@ -81,23 +106,42 @@ namespace Lous12.PoliticalWorld
             Events.PartySupportChanged,
             Events.RulerChanged,
             Events.ElectionFinished,
+            Events.CountryNameChanged,
+            Events.WarStarted,
+            Events.WarEnded,
             Events.PoliticalCrisisStarted,
             Events.PoliticalCrisisEnded,
+            Events.SettlementSeparatistMovementStarted,
+            Events.SettlementAutonomyDemanded,
+            Events.SettlementSecessionCrisisStarted,
+            Events.SettlementSeparatismEnded,
             Events.LeadershipCrisisStarted,
             Events.LeadershipCrisisResolved,
             Events.RarePoliticalEventFired,
-            Events.PoliticalEventPublished
+            Events.PoliticalEventPublished,
+            Events.WorldChanged,
+            Events.WorldReady,
+            Events.WorldUnavailable
         };
 
         private static readonly Dictionary<string, List<EventSubscription>> EventSubscriptions =
             new Dictionary<string, List<EventSubscription>>(StringComparer.Ordinal);
+
+        private static readonly HashSet<string> RegisteredCustomEventIds =
+            new HashSet<string>(StringComparer.Ordinal);
 
         private const int MaxEventDispatchDepth = 16;
         private static int _eventDispatchDepth;
 
         public static string[] GetEventIds()
         {
-            return (string[])KnownEventIds.Clone();
+            List<string> result = new List<string>(KnownEventIds);
+            foreach (string eventId in RegisteredCustomEventIds)
+            {
+                if (!string.IsNullOrEmpty(eventId)) result.Add(eventId);
+            }
+            result.Sort(StringComparer.Ordinal);
+            return result.ToArray();
         }
 
         public static bool Subscribe(
@@ -123,13 +167,13 @@ namespace Lous12.PoliticalWorld
                 );
                 return false;
             }
-            if (!IsKnownEventId(wanted) && wanted != Events.All)
+            if (!IsSubscribableEventId(wanted) && wanted != Events.All)
             {
                 InternalRecordDiagnostic(
                     owner,
                     "ERROR",
                     "PW401",
-                    "Unknown Political World event id '" + wanted + "'. Use GetEventIds() for supported events."
+                    "Invalid event id '" + wanted + "'. Core events use GetEventIds(); custom events must be namespaced."
                 );
                 return false;
             }
@@ -253,6 +297,100 @@ namespace Lous12.PoliticalWorld
             return removed;
         }
 
+        internal static bool InternalRegisterCustomEvent(
+            string addonId,
+            string eventId
+        )
+        {
+            string owner = addonId == null ? "" : addonId.Trim();
+            string wanted = eventId == null ? "" : eventId.Trim();
+            if (!IsAddonRegistered(owner) || !IsOwnedContentId(owner, wanted) || !IsSafeCustomEventId(wanted))
+            {
+                return false;
+            }
+            if (!InternalRegisterCustomEventOwner(owner, wanted))
+            {
+                return false;
+            }
+            RegisteredCustomEventIds.Add(wanted);
+            return true;
+        }
+
+        internal static bool InternalEmitAddonEvent(
+            string sourceAddonId,
+            string eventId,
+            IDictionary<string, string> payload,
+            Kingdom kingdom,
+            City city,
+            Actor actor,
+            string category
+        )
+        {
+            string source = sourceAddonId == null ? "" : sourceAddonId.Trim();
+            string wanted = eventId == null ? "" : eventId.Trim();
+            if (!IsAddonRegistered(source) || !RegisteredCustomEventIds.Contains(wanted))
+            {
+                return false;
+            }
+
+            InternalRecordEventPublished(source, wanted);
+
+            // Publishing an event with no listeners is still considered a
+            // successful publish. This keeps producers independent from load
+            // order and from whether any consumer is installed.
+            if (!HasSubscribers(wanted))
+            {
+                return true;
+            }
+
+            if (_eventDispatchDepth >= MaxEventDispatchDepth)
+            {
+                try
+                {
+                    NeoModLoader.services.LogService.LogError(
+                        "[Political World API] Event dispatch depth limit reached for '" +
+                        wanted +
+                        "'. A callback may be causing a recursive event loop."
+                    );
+                }
+                catch
+                {
+                }
+                return false;
+            }
+
+            string kingdomName = "";
+            if (kingdom != null)
+            {
+                try { kingdomName = Main.ScenarioBridge.GetKingdomDisplayName(kingdom); }
+                catch { kingdomName = ""; }
+            }
+
+            PoliticalEventData data = new PoliticalEventData()
+            {
+                EventId = wanted,
+                Kingdom = kingdom,
+                KingdomName = kingdomName,
+                Actor = actor,
+                City = city,
+                SourceAddonId = source,
+                Category = category ?? "",
+                Payload = ClonePayload(payload)
+            };
+
+            _eventDispatchDepth++;
+            try
+            {
+                DispatchToSubscribers(wanted, data);
+                DispatchToSubscribers(Events.All, data);
+            }
+            finally
+            {
+                _eventDispatchDepth--;
+            }
+            return true;
+        }
+
         internal static void InternalEmitCoreEvent(
             string eventId,
             Kingdom kingdom,
@@ -270,13 +408,25 @@ namespace Lous12.PoliticalWorld
             string newName = "",
             string sourceAddonId = "",
             string category = "",
-            int year = -1
+            int year = -1,
+            string ideologyId = "",
+            string currentId = "",
+            string governmentId = "",
+            Kingdom targetKingdom = null,
+            string warSource = "",
+            IDictionary<string, string> payload = null,
+            City city = null
         )
         {
             if (!IsKnownEventId(eventId))
             {
                 return;
             }
+
+            InternalRecordEventPublished(
+                string.IsNullOrEmpty(sourceAddonId) ? CoreModId : sourceAddonId,
+                eventId
+            );
 
             if (!HasSubscribers(eventId))
             {
@@ -312,6 +462,19 @@ namespace Lous12.PoliticalWorld
                 }
             }
 
+            string targetKingdomName = "";
+            if (targetKingdom != null)
+            {
+                try
+                {
+                    targetKingdomName = Main.ScenarioBridge.GetKingdomDisplayName(targetKingdom);
+                }
+                catch
+                {
+                    targetKingdomName = "";
+                }
+            }
+
             PoliticalEventData data = new PoliticalEventData()
             {
                 EventId = eventId ?? "",
@@ -322,6 +485,12 @@ namespace Lous12.PoliticalWorld
                 OldNumber = oldNumber,
                 NewNumber = newNumber,
                 PartyId = partyId ?? "",
+                IdeologyId = ideologyId ?? "",
+                CurrentId = currentId ?? "",
+                GovernmentId = governmentId ?? "",
+                TargetKingdom = targetKingdom,
+                TargetKingdomName = targetKingdomName,
+                WarSource = warSource ?? "",
                 Actor = actor,
                 ActorIdentity = actorIdentity ?? "",
                 ActorName = actorName ?? "",
@@ -331,7 +500,9 @@ namespace Lous12.PoliticalWorld
                 Category = category ?? "",
                 Year = year,
                 Text = text ?? "",
-                EventKey = eventKey ?? ""
+                EventKey = eventKey ?? "",
+                City = city,
+                Payload = ClonePayload(payload)
             };
 
             _eventDispatchDepth++;
@@ -370,6 +541,10 @@ namespace Lous12.PoliticalWorld
 
                 try
                 {
+                    InternalRecordEventCallback(
+                        subscription.AddonId,
+                        data == null ? eventId : data.EventId
+                    );
                     subscription.Handler(CloneEventData(data));
                 }
                 catch (Exception exception)
@@ -434,6 +609,12 @@ namespace Lous12.PoliticalWorld
                 OldNumber = source.OldNumber,
                 NewNumber = source.NewNumber,
                 PartyId = source.PartyId,
+                IdeologyId = source.IdeologyId,
+                CurrentId = source.CurrentId,
+                GovernmentId = source.GovernmentId,
+                TargetKingdom = source.TargetKingdom,
+                TargetKingdomName = source.TargetKingdomName,
+                WarSource = source.WarSource,
                 Actor = source.Actor,
                 ActorIdentity = source.ActorIdentity,
                 ActorName = source.ActorName,
@@ -443,8 +624,50 @@ namespace Lous12.PoliticalWorld
                 Category = source.Category,
                 Year = source.Year,
                 Text = source.Text,
-                EventKey = source.EventKey
+                EventKey = source.EventKey,
+                City = source.City,
+                Payload = ClonePayload(source.Payload)
             };
+        }
+
+        private static Dictionary<string, string> ClonePayload(
+            IDictionary<string, string> payload
+        )
+        {
+            Dictionary<string, string> result =
+                new Dictionary<string, string>(StringComparer.Ordinal);
+            if (payload == null) return result;
+
+            foreach (KeyValuePair<string, string> pair in payload)
+            {
+                string key = pair.Key == null ? "" : pair.Key.Trim();
+                if (key.Length == 0 || key.Length > 128) continue;
+                result[key] = pair.Value ?? "";
+            }
+            return result;
+        }
+
+        private static bool IsSubscribableEventId(string eventId)
+        {
+            return IsKnownEventId(eventId) ||
+                RegisteredCustomEventIds.Contains(eventId == null ? "" : eventId.Trim()) ||
+                IsSafeCustomEventId(eventId);
+        }
+
+        private static bool IsSafeCustomEventId(string eventId)
+        {
+            string value = eventId == null ? "" : eventId.Trim();
+            if (value.Length < 3 || value.Length > 192 || value.IndexOf('.') < 1)
+            {
+                return false;
+            }
+            for (int i = 0; i < value.Length; i++)
+            {
+                char c = value[i];
+                bool safe = char.IsLetterOrDigit(c) || c == '.' || c == ':' || c == '_' || c == '-';
+                if (!safe) return false;
+            }
+            return true;
         }
 
         private static bool IsKnownEventId(string eventId)

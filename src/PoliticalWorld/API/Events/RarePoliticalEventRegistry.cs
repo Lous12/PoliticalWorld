@@ -31,7 +31,7 @@ namespace Lous12.PoliticalWorld
         private static List<RegisteredRarePoliticalEvent> _sortedRarePoliticalEventCache;
 
         private static int _lastRarePoliticalEventEvaluationYear = int.MinValue;
-        private static object _lastRarePoliticalEventWorld;
+        private static int _lastRarePoliticalEventWorldSessionId = int.MinValue;
 
         public static ValidationResult ValidateRarePoliticalEvent(
             string addonId,
@@ -461,10 +461,10 @@ namespace Lous12.PoliticalWorld
                 return;
             }
 
-            object currentWorld = World.world;
-            if (!object.ReferenceEquals(_lastRarePoliticalEventWorld, currentWorld))
+            int currentWorldSessionId = Lifecycle.GetWorldSessionId();
+            if (_lastRarePoliticalEventWorldSessionId != currentWorldSessionId)
             {
-                _lastRarePoliticalEventWorld = currentWorld;
+                _lastRarePoliticalEventWorldSessionId = currentWorldSessionId;
                 _lastRarePoliticalEventEvaluationYear = int.MinValue;
             }
 

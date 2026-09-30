@@ -97,6 +97,25 @@ namespace Lous12.PoliticalWorld
                     return;
                 }
 
+                EnsureNativeCityPoliticsUi(__instance);
+
+                int windowId = __instance.GetInstanceID();
+                if (
+                    _cityPoliticsWindows.Contains(windowId) &&
+                    !_openingNativeCityPolitics
+                )
+                {
+                    _cityPoliticsWindows.Remove(windowId);
+                    _cityPoliticsAddonPageIds.Remove(windowId);
+                    HideNativeCityPoliticsPanel(__instance);
+                }
+
+                // 1.10.0-dev3: keep the vanilla settlement page readable.
+                // The old build dumped every political metric into the normal
+                // stat list and eventually turned the window into a debug log.
+                // Only the two useful at-a-glance rows stay here; the full
+                // local political state now lives in the dedicated Politics
+                // page.
                 int stability = GetLocalStability(city);
                 int target = CalculateLocalStabilityTarget(city);
 
@@ -136,149 +155,11 @@ namespace Lous12.PoliticalWorld
                     GetIdeologyIconPath(dominantIdeology),
                     "iconLeaders"
                 );
-
-                Kingdom kingdom = GetKingdomFromObject(city);
-                string stateIdeology = GetStateIdeology(kingdom);
-
-                EnsureAndUpdateCityPoliticalMemory(
-                    city,
-                    kingdom,
-                    stateIdeology
-                );
-
-                string memoryIdeology;
-                int memoryStrength;
-                GetDominantCityPoliticalMemory(
-                    city,
-                    out memoryIdeology,
-                    out memoryStrength
-                );
-
-                ShowCityStatRowWithCustomIcon(
-                    __instance,
-                    "ukiol_city_political_tradition_label",
-                    (object)FormatCityPoliticalTradition(
-                        memoryIdeology,
-                        memoryStrength
-                    ),
-                    "#C8B47A",
-                    GetIdeologyIconPath(memoryIdeology),
-                    "iconLeaders"
-                );
-                int stateIdeologySupport = IsValidIdeology(stateIdeology)
-                    ? GetCityIdeologySupport(city, stateIdeology)
-                    : 0;
-
-                ShowCityStatRowWithCustomIcon(
-                    __instance,
-                    "ukiol_city_state_ideology_support_label",
-                    (object)FormatCityStateIdeologySupport(
-                        stateIdeology,
-                        stateIdeologySupport
-                    ),
-                    GetIdeologySupportColor(stateIdeologySupport),
-                    GetIdeologyIconPath(stateIdeology),
-                    "iconLeaders"
-                );
-
-                ShowCityStatRowWithCustomIcon(
-                    __instance,
-                    "ukiol_city_ideological_tension_label",
-                    (object)FormatIdeologicalTension(
-                        ideologicalTension
-                    ),
-                    GetIdeologicalTensionColor(
-                        ideologicalTension
-                    ),
-                    SocietyIconPath,
-                    "iconLeaders"
-                );
-
-                int ideologicalHostility = GetCityIdeologicalHostility(city);
-
-                ShowCityStatRowWithCustomIcon(
-                    __instance,
-                    "ukiol_city_ideological_hostility_label",
-                    (object)FormatIdeologicalHostility(ideologicalHostility),
-                    GetIdeologicalHostilityColor(ideologicalHostility),
-                    GetIdeologyIconPath(dominantIdeology),
-                    "iconLeaders"
-                );
-
-                string cityPartyIdeology;
-                string cityPartyName;
-                int cityPartySupport;
-                int cityPartySecondSupport;
-
-                GetLeadingCityPoliticalParty(
-                    city,
-                    out cityPartyIdeology,
-                    out cityPartyName,
-                    out cityPartySupport,
-                    out cityPartySecondSupport
-                );
-
-                ShowCityStatRowWithCustomIcon(
-                    __instance,
-                    "ukiol_city_leading_party_label",
-                    (object)FormatCityPartyCompetition(
-                        cityPartyName,
-                        cityPartySupport,
-                        cityPartySecondSupport
-                    ),
-                    GetPartyCompetitionColor(
-                        cityPartySupport,
-                        cityPartySecondSupport
-                    ),
-                    PartiesIconPath,
-                    "iconLeaders"
-                );
-
-                PoliticalParty localStronghold =
-                    GetStrongholdPartyForCity(kingdom, city);
-                if (localStronghold != null)
-                {
-                    int localStrongholdSupport =
-                        localStronghold.StrongholdSupport;
-
-                    ShowCityStatRowWithCustomIcon(
-                        __instance,
-                        "ukiol_city_party_stronghold_label",
-                        (object)FormatPartyWithSupport(
-                            localStronghold.Name,
-                            localStrongholdSupport
-                        ),
-                        GetIdeologySupportColor(
-                            localStrongholdSupport
-                        ),
-                        GetIdeologyIconPath(
-                            localStronghold.Ideology
-                        ),
-                        "iconLeaders"
-                    );
-                }
-
-                int national = GetNationalStability(kingdom);
-
-                __instance.showStatRow(
-                    "ukiol_rebellion_risk_label",
-                    (object)GetRebellionRiskText(
-                        city,
-                        stability,
-                        national
-                    ),
-                    GetRebellionRiskColor(
-                        city,
-                        stability,
-                        national
-                    ),
-                    pIconPath: "iconKings"
-                );
             }
             catch (Exception exception)
             {
                 LogWarning(
-                    "Could not show local stability in city window: " +
+                    "Could not render settlement Politics entry point: " +
                     exception.Message
                 );
             }
@@ -2612,6 +2493,7 @@ namespace Lous12.PoliticalWorld
                 NativePoliticsPageOverview,
                 NativePoliticsPageHistory
             );
+            _kingdomPoliticsAddonPageIds.Remove(windowId);
 
             // Clicking any top Politics page is an explicit navigation action.
             // In particular, clicking Parties while a profile is open returns
@@ -2619,6 +2501,24 @@ namespace Lous12.PoliticalWorld
             _kingdomPoliticsSelectedPartyIds.Remove(windowId);
             _kingdomPoliticsSelectedPartyKingdomIds.Remove(windowId);
 
+            OpenNativeKingdomPolitics(pWindow);
+        }
+
+        private static void SelectNativeKingdomAddonPoliticsPage(
+            KingdomWindow pWindow,
+            string pPageId
+        )
+        {
+            if (pWindow == null || string.IsNullOrEmpty(pPageId))
+            {
+                return;
+            }
+
+            int windowId = pWindow.GetInstanceID();
+            _kingdomPoliticsWindows.Add(windowId);
+            _kingdomPoliticsAddonPageIds[windowId] = pPageId;
+            _kingdomPoliticsSelectedPartyIds.Remove(windowId);
+            _kingdomPoliticsSelectedPartyKingdomIds.Remove(windowId);
             OpenNativeKingdomPolitics(pWindow);
         }
 
@@ -2937,6 +2837,13 @@ namespace Lous12.PoliticalWorld
             bar.childForceExpandWidth = false;
             bar.childForceExpandHeight = false;
 
+            int politicsWindowId = pWindow.GetInstanceID();
+            string addonPageId = "";
+            _kingdomPoliticsAddonPageIds.TryGetValue(
+                politicsWindowId,
+                out addonPageId
+            );
+
             string[] icons =
             {
                 OverviewIconPath,
@@ -2952,7 +2859,7 @@ namespace Lous12.PoliticalWorld
                 Button pageButton = CreateEmbeddedPoliticsPageButton(
                     barObject.transform,
                     icons[page],
-                    page == pPage
+                    string.IsNullOrEmpty(addonPageId) && page == pPage
                 );
                 if (pageButton != null)
                 {
@@ -2962,6 +2869,39 @@ namespace Lous12.PoliticalWorld
                             SelectNativeKingdomPoliticsPage(
                                 pWindow,
                                 capturedPage
+                            );
+                        }
+                    );
+                }
+            }
+
+            List<PoliticalWorldAPI.PoliticsPageInfo> addonPages =
+                PoliticalWorldAPI.UI.GetPoliticsPages(kingdom);
+            for (int i = 0; i < addonPages.Count; i++)
+            {
+                PoliticalWorldAPI.PoliticsPageInfo page = addonPages[i];
+                if (page == null)
+                {
+                    continue;
+                }
+
+                string capturedId = page.Id;
+                string iconPath = string.IsNullOrEmpty(page.IconPath)
+                    ? PoliticsIconPath
+                    : page.IconPath;
+                Button pageButton = CreateEmbeddedPoliticsPageButton(
+                    barObject.transform,
+                    iconPath,
+                    string.Equals(addonPageId, page.Id, StringComparison.Ordinal)
+                );
+                if (pageButton != null)
+                {
+                    pageButton.onClick.AddListener(
+                        delegate
+                        {
+                            SelectNativeKingdomAddonPoliticsPage(
+                                pWindow,
+                                capturedId
                             );
                         }
                     );
@@ -3035,7 +2975,6 @@ namespace Lous12.PoliticalWorld
             // still controlling the outer (covered) page. Temporarily
             // disable the outer ScrollRect and bind its existing Scrollbar
             // to the Politics ScrollRect instead.
-            int politicsWindowId = pWindow.GetInstanceID();
             if (!_kingdomPoliticsHostScrolls.ContainsKey(politicsWindowId))
             {
                 _kingdomPoliticsHostScrolls[politicsWindowId] = hostScroll;
@@ -3059,13 +2998,49 @@ namespace Lous12.PoliticalWorld
             }
 
             Text textTemplate = FindPoliticsTextTemplate(pWindow);
-            RenderEmbeddedPoliticsPage(
-                pWindow,
-                kingdom,
-                pPage,
-                contentObject.transform,
-                textTemplate
-            );
+            bool renderedAddon = false;
+            if (!string.IsNullOrEmpty(addonPageId))
+            {
+                for (int i = 0; i < addonPages.Count; i++)
+                {
+                    PoliticalWorldAPI.PoliticsPageInfo page = addonPages[i];
+                    if (
+                        page == null ||
+                        !string.Equals(page.Id, addonPageId, StringComparison.Ordinal)
+                    )
+                    {
+                        continue;
+                    }
+
+                    renderedAddon = PoliticalWorldAPI.UI.RenderPoliticsPage(
+                        page,
+                        new PoliticalWorldAPI.PoliticsPageContext
+                        {
+                            TargetKind = PoliticalWorldAPI.InspectorTargetKind.Kingdom,
+                            KingdomWindow = pWindow,
+                            Kingdom = kingdom,
+                            Content = contentObject.transform,
+                            TextTemplate = textTemplate
+                        }
+                    );
+                    break;
+                }
+            }
+
+            if (!renderedAddon)
+            {
+                if (!string.IsNullOrEmpty(addonPageId))
+                {
+                    _kingdomPoliticsAddonPageIds.Remove(politicsWindowId);
+                }
+                RenderEmbeddedPoliticsPage(
+                    pWindow,
+                    kingdom,
+                    pPage,
+                    contentObject.transform,
+                    textTemplate
+                );
+            }
 
             panelObject.SetActive(true);
             politicsScroll.verticalNormalizedPosition = 1f;
@@ -3081,7 +3056,7 @@ namespace Lous12.PoliticalWorld
         }
 
         private static Text FindPoliticsTextTemplate(
-            KingdomWindow pWindow
+            Component pWindow
         )
         {
             if (pWindow == null)
@@ -3225,6 +3200,13 @@ namespace Lous12.PoliticalWorld
                     pTextTemplate,
                     LM.Get("ukiol_native_politics_parties_title"),
                     PartiesIconPath
+                );
+
+                AddEmbeddedPartyCreateButton(
+                    pWindow,
+                    pKingdom,
+                    pContent,
+                    pTextTemplate
                 );
 
                 List<PartyOverviewEntry> parties =
@@ -4189,6 +4171,36 @@ namespace Lous12.PoliticalWorld
                 );
             }
 
+            string winningCoalitionName = GetKingdomStringData(
+                pKingdom,
+                ElectionWinningCoalitionNameDataKey,
+                ""
+            );
+            int winningCoalitionSupport = ClampInt(
+                GetKingdomIntData(
+                    pKingdom,
+                    ElectionWinningCoalitionSupportDataKey,
+                    0
+                ),
+                0,
+                100
+            );
+            if (!string.IsNullOrEmpty(winningCoalitionName))
+            {
+                AddEmbeddedPoliticsRow(
+                    pContent,
+                    pTextTemplate,
+                    LM.Get("ukiol_election_coalition_label"),
+                    string.Format(
+                        LM.Get("ukiol_election_coalition_value"),
+                        winningCoalitionName,
+                        winningCoalitionSupport
+                    ),
+                    PartiesIconPath,
+                    new Color(0.78f, 0.72f, 0.9f, 1f)
+                );
+            }
+
             string ideology = GetStateIdeology(pKingdom);
             int ideologySupport = GetKingdomIdeologySupport(
                 pKingdom,
@@ -4519,6 +4531,88 @@ namespace Lous12.PoliticalWorld
             );
         }
 
+        private static void AddEmbeddedPartyCreateButton(
+            KingdomWindow pWindow,
+            Kingdom pKingdom,
+            Transform pParent,
+            Text pTemplate
+        )
+        {
+            if (
+                pWindow == null ||
+                pKingdom == null ||
+                pParent == null
+            )
+            {
+                return;
+            }
+
+            GameObject rowObject = new GameObject(
+                "ukiol_party_create_button",
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image),
+                typeof(Button),
+                typeof(LayoutElement)
+            );
+            rowObject.transform.SetParent(pParent, false);
+
+            LayoutElement layout = rowObject.GetComponent<LayoutElement>();
+            layout.minHeight = 30f;
+            layout.preferredHeight = 30f;
+            layout.flexibleHeight = 0f;
+
+            Image background = rowObject.GetComponent<Image>();
+            Sprite bgSprite = SpriteTextureLoader.getSprite(
+                "ui/special/windowInnerSliced"
+            );
+            if (bgSprite != null)
+            {
+                background.sprite = bgSprite;
+                background.type = Image.Type.Sliced;
+            }
+            background.color = new Color(0.14f, 0.27f, 0.18f, 0.96f);
+            background.raycastTarget = true;
+
+            Text text = CreateEmbeddedPoliticsText(
+                rowObject.transform,
+                pTemplate,
+                "create_party_text",
+                "+  " + LM.Get("ukiol_party_create_button"),
+                new Color(0.78f, 0.94f, 0.72f, 1f),
+                TextAnchor.MiddleCenter,
+                11
+            );
+            if (text != null)
+            {
+                RectTransform r = text.rectTransform;
+                r.anchorMin = Vector2.zero;
+                r.anchorMax = Vector2.one;
+                r.offsetMin = new Vector2(8f, 1f);
+                r.offsetMax = new Vector2(-8f, -1f);
+                text.fontStyle = FontStyle.Bold;
+            }
+
+            Button button = rowObject.GetComponent<Button>();
+            button.targetGraphic = background;
+            ColorBlock colors = button.colors;
+            colors.normalColor = Color.white;
+            colors.highlightedColor = new Color(0.90f, 1f, 0.86f, 1f);
+            colors.pressedColor = new Color(0.68f, 0.86f, 0.64f, 1f);
+            colors.selectedColor = Color.white;
+            colors.colorMultiplier = 1f;
+            button.colors = colors;
+            button.onClick.AddListener(
+                delegate
+                {
+                    PartyEditorWindow.OpenForCreate(
+                        pWindow,
+                        pKingdom
+                    );
+                }
+            );
+        }
+
         private static void AddEmbeddedPartyRenameButton(
             KingdomWindow pWindow,
             Kingdom pKingdom,
@@ -4539,7 +4633,7 @@ namespace Lous12.PoliticalWorld
             }
 
             GameObject rowObject = new GameObject(
-                "ukiol_party_profile_rename",
+                "ukiol_party_profile_editor",
                 typeof(RectTransform),
                 typeof(CanvasRenderer),
                 typeof(Image),
@@ -4568,8 +4662,8 @@ namespace Lous12.PoliticalWorld
             Text text = CreateEmbeddedPoliticsText(
                 rowObject.transform,
                 pTemplate,
-                "rename_text",
-                "✎  " + LM.Get("ukiol_party_rename_button"),
+                "editor_text",
+                "✎  " + LM.Get("ukiol_party_editor_button"),
                 new Color(0.94f, 0.84f, 0.46f, 1f),
                 TextAnchor.MiddleCenter,
                 11
@@ -4598,7 +4692,7 @@ namespace Lous12.PoliticalWorld
             button.onClick.AddListener(
                 delegate
                 {
-                    PartyRenameWindow.OpenForParty(
+                    PartyEditorWindow.OpenForParty(
                         pWindow,
                         pKingdom,
                         capturedPartyId
@@ -4953,7 +5047,7 @@ namespace Lous12.PoliticalWorld
             }
 
             List<PoliticalParty> runtimeParties =
-                GetPoliticalParties(pKingdom);
+                GetPoliticalPartiesReadOnly(pKingdom);
             PoliticalParty runtimeParty =
                 FindPoliticalPartyById(
                     runtimeParties,

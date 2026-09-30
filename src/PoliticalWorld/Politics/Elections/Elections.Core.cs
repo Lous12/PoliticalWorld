@@ -48,6 +48,12 @@ namespace Lous12.PoliticalWorld
 
                 if (system != PoliticalSystemCompetitiveId)
                 {
+                    StoreElectionWinningCoalition(
+                        kingdom,
+                        "",
+                        "",
+                        0
+                    );
                     SetKingdomIntData(
                         kingdom,
                         ElectionNextYearDataKey,
@@ -253,54 +259,30 @@ namespace Lous12.PoliticalWorld
                 totalRawVotes += rawVotes;
             }
 
-            PoliticalParty winner = null;
-            int winnerVotes = -1;
-
-            for (int i = 0; i < parties.Count; i++)
-            {
-                PoliticalParty candidate = parties[i];
-                if (
-                    candidate == null ||
-                    !candidate.Active ||
-                    string.IsNullOrEmpty(candidate.Id)
-                )
-                {
-                    continue;
-                }
-
-                int rawVotes = 0;
-                rawVotesByParty.TryGetValue(
-                    candidate.Id,
-                    out rawVotes
-                );
-                int votes = totalRawVotes <= 0
-                    ? 0
-                    : ClampInt(
-                        (int)Math.Round(
-                            rawVotes * 100.0 / totalRawVotes
-                        ),
-                        0,
-                        100
-                    );
-
-                if (
-                    winner == null ||
-                    votes > winnerVotes ||
-                    (votes == winnerVotes &&
-                        string.CompareOrdinal(
-                            candidate.Id ?? "",
-                            winner.Id ?? ""
-                        ) < 0)
-                )
-                {
-                    winner = candidate;
-                    winnerVotes = votes;
-                }
-            }
+            int winnerVotes;
+            string winningCoalitionId;
+            string winningCoalitionName;
+            int winningCoalitionVotes;
+            PoliticalParty winner = ResolveElectionWinnerWithCoalitions(
+                kingdom,
+                parties,
+                rawVotesByParty,
+                totalRawVotes,
+                out winnerVotes,
+                out winningCoalitionId,
+                out winningCoalitionName,
+                out winningCoalitionVotes
+            );
 
             int term = GetGovernmentElectionTermYears(governmentForm);
             if (winner == null)
             {
+                StoreElectionWinningCoalition(
+                    kingdom,
+                    "",
+                    "",
+                    0
+                );
                 // Parties may not have formed yet. Retry next year instead of
                 // recording a fake election with no candidate.
                 SetKingdomIntData(
@@ -312,7 +294,24 @@ namespace Lous12.PoliticalWorld
             }
 
             winnerVotes = ClampInt(winnerVotes, 0, 100);
+            StoreElectionWinningCoalition(
+                kingdom,
+                winningCoalitionId,
+                winningCoalitionName,
+                winningCoalitionVotes
+            );
             SetRulingPartyFromElection(kingdom, winner);
+
+            // In elective republics the person shown by vanilla WorldBox as
+            // the country's ruler should follow the election result as well.
+            // Constitutional monarchies are deliberately excluded: elections
+            // change the government there, not the monarch.
+            SyncVanillaRulerWithElectionWinner(
+                kingdom,
+                governmentForm,
+                winner
+            );
+
             SetKingdomIntData(
                 kingdom,
                 ElectionRulingPartySupportDataKey,
@@ -323,10 +322,14 @@ namespace Lous12.PoliticalWorld
                 ElectionLastYearDataKey,
                 electionYear
             );
+            int nextElectionYear = Math.Max(
+                1,
+                electionYear + Math.Max(1, term)
+            );
             SetKingdomIntData(
                 kingdom,
                 ElectionNextYearDataKey,
-                Math.Max(1, electionYear + Math.Max(1, term))
+                nextElectionYear
             );
 
             RecordElectionHistory(
@@ -352,23 +355,109 @@ namespace Lous12.PoliticalWorld
                 newName: winner.Name ?? "",
                 eventKey: "election_result_" + (winner.Id ?? ""),
                 category: "election",
-                year: electionYear
+                year: electionYear,
+                ideologyId: winner.Ideology ?? "",
+                currentId: GetStateIdeologyCurrent(kingdom) ?? "",
+                governmentId: GetGovernmentPublicId(kingdom) ?? "",
+                payload: new Dictionary<string, string>()
+                {
+                    { "winner_party_id", winner.Id ?? "" },
+                    { "winner_party_name", winner.Name ?? "" },
+                    { "winner_ideology_id", winner.Ideology ?? "" },
+                    { "winner_support", winnerVotes.ToString() },
+                    { "next_election_year", nextElectionYear.ToString() },
+                    { "coalition_id", winningCoalitionId ?? "" },
+                    { "coalition_name", winningCoalitionName ?? "" },
+                    { "coalition_support", winningCoalitionVotes.ToString() }
+                }
             );
 
-            PublishPoliticalEvent(
-                string.Format(
+            string electionEventText = string.IsNullOrEmpty(winningCoalitionId)
+                ? string.Format(
                     LM.Get("ukiol_event_election_result"),
                     GetWorldObjectDisplayName(kingdom),
                     winner.Name,
                     winnerVotes
-                ),
+                )
+                : string.Format(
+                    LM.Get("ukiol_event_election_coalition_result"),
+                    GetWorldObjectDisplayName(kingdom),
+                    winningCoalitionName,
+                    winningCoalitionVotes,
+                    winner.Name
+                );
+
+            PublishPoliticalEvent(
+                electionEventText,
                 kingdom,
                 null,
                 winner.LeaderActor,
                 GetIdeologyIconPath(winner.Ideology),
                 "election_result_" + winner.Id,
-                35f
+                35f,
+                new List<string>
+                {
+                    string.Format(
+                        LM.Get("ukiol_chronicle_detail_election_votes"),
+                        winnerVotes
+                    ),
+                    string.Format(
+                        LM.Get("ukiol_chronicle_detail_election_government"),
+                        GetGovernmentFormName(governmentForm)
+                    )
+                },
+                new List<string>
+                {
+                    string.Format(
+                        LM.Get("ukiol_chronicle_detail_election_ruling_party"),
+                        winner.Name
+                    ),
+                    string.Format(
+                        LM.Get("ukiol_chronicle_detail_election_next"),
+                        nextElectionYear
+                    )
+                }
             );
+        }
+
+        private static void SyncVanillaRulerWithElectionWinner(
+            Kingdom kingdom,
+            string governmentForm,
+            PoliticalParty winner
+        )
+        {
+            if (
+                kingdom == null ||
+                winner == null ||
+                (governmentForm != GovernmentParliamentaryRepublicId &&
+                    governmentForm != GovernmentPresidentialRepublicId)
+            )
+            {
+                return;
+            }
+
+            Actor electedLeader = winner.LeaderActor;
+            if (electedLeader == null || !electedLeader.isAlive())
+            {
+                electedLeader = FindPartyActorByIdentity(
+                    kingdom,
+                    winner.LeaderIdentity,
+                    winner.LeaderName
+                );
+            }
+
+            if (electedLeader == null || !electedLeader.isAlive())
+            {
+                return;
+            }
+
+            // If the same party/leader wins again there is nothing to do.
+            if (GetLivingRuler(kingdom) == electedLeader)
+            {
+                return;
+            }
+
+            TryInstallPoliticalRuler(kingdom, electedLeader);
         }
 
         private static int CalculateElectionPartyVoteShare(

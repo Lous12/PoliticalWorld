@@ -16,155 +16,351 @@ namespace Lous12.PoliticalWorld
 {
     public partial class Main
     {
+        // PARTY PIPELINE FIX2: the old implementation processed every kingdom
+        // in one rendered frame. On active saves that could create several
+        // parties, refresh leaders, rewrite party histories and emit multiple
+        // WorldLog events back-to-back. The Player logs repeatedly stopped in
+        // the middle of that burst without a managed exception. Keep exactly
+        // the same political logic, but spread the world pass across frames.
+        private static List<Kingdom> PartyUpdateKingdomSnapshot =
+            new List<Kingdom>();
+        private static int PartyUpdateKingdomIndex;
+        private static bool PartyUpdatePassActive;
+        private static int PartyUpdatePassSerial;
+
+        private static void ResetPoliticalPartyUpdatePass()
+        {
+            PartyUpdateKingdomSnapshot.Clear();
+            PartyUpdateKingdomIndex = 0;
+            PartyUpdatePassActive = false;
+        }
+
+        // Returns true only when the complete world party pass has finished.
+        // RunPoliticalSimulationPipelineStep() keeps stage 3 active while this
+        // returns false, so one kingdom is handled per rendered frame.
+        private static bool UpdatePoliticalPartiesIncremental()
+        {
+            if (!PartyUpdatePassActive)
+            {
+                PartyUpdateKingdomSnapshot = GetKingdomsSafe();
+                PartyUpdateKingdomIndex = 0;
+                PartyUpdatePassActive = true;
+                PartyUpdatePassSerial++;
+
+                if (VerbosePoliticalDiagnostics)
+                {
+                    LogInfo(
+                        "[PW-PARTY-GUARD] pass begin serial=" +
+                        PartyUpdatePassSerial +
+                        " kingdoms=" + PartyUpdateKingdomSnapshot.Count
+                    );
+                }
+            }
+
+            if (IsWorldTopologySettling())
+            {
+                if (VerbosePoliticalDiagnostics)
+                {
+                    LogInfo(
+                        "[PW-PARTY-GUARD] pass cancelled by topology settle serial=" +
+                        PartyUpdatePassSerial
+                    );
+                }
+                ResetPoliticalPartyUpdatePass();
+                return true;
+            }
+
+            if (PartyUpdateKingdomIndex >= PartyUpdateKingdomSnapshot.Count)
+            {
+                if (VerbosePoliticalDiagnostics)
+                {
+                    LogInfo(
+                        "[PW-PARTY-GUARD] pass complete serial=" +
+                        PartyUpdatePassSerial
+                    );
+                }
+                ResetPoliticalPartyUpdatePass();
+                return true;
+            }
+
+            int currentIndex = PartyUpdateKingdomIndex;
+            Kingdom kingdom = PartyUpdateKingdomSnapshot[currentIndex];
+            PartyUpdateKingdomIndex++;
+
+            string kingdomName = "<null>";
+            if (kingdom != null)
+            {
+                try
+                {
+                    kingdomName = GetWorldObjectDisplayName(kingdom);
+                }
+                catch
+                {
+                    kingdomName = "<unreadable>";
+                }
+            }
+
+            if (VerbosePoliticalDiagnostics)
+            {
+                LogInfo(
+                    "[PW-PARTY-GUARD] kingdom begin serial=" +
+                    PartyUpdatePassSerial +
+                    " index=" + currentIndex +
+                    " name=" + kingdomName
+                );
+            }
+
+            try
+            {
+                UpdatePoliticalPartiesForKingdom(kingdom);
+            }
+            catch (Exception exception)
+            {
+                // A managed error in one kingdom must never abort the whole
+                // Political World simulation. Keep the full exception text in
+                // Player.log so the exact operation is visible on the next run.
+                LogWarning(
+                    "[PW-PARTY-GUARD] kingdom failed serial=" +
+                    PartyUpdatePassSerial +
+                    " index=" + currentIndex +
+                    " name=" + kingdomName +
+                    " exception=" + exception
+                );
+            }
+
+            if (VerbosePoliticalDiagnostics)
+            {
+                LogInfo(
+                    "[PW-PARTY-GUARD] kingdom end serial=" +
+                    PartyUpdatePassSerial +
+                    " index=" + currentIndex +
+                    " name=" + kingdomName
+                );
+            }
+
+            if (PartyUpdateKingdomIndex >= PartyUpdateKingdomSnapshot.Count)
+            {
+                if (VerbosePoliticalDiagnostics)
+                {
+                    LogInfo(
+                        "[PW-PARTY-GUARD] pass complete serial=" +
+                        PartyUpdatePassSerial
+                    );
+                }
+                ResetPoliticalPartyUpdatePass();
+                return true;
+            }
+
+            return false;
+        }
+
+        // Retained as a synchronous helper for internal callers/tests. Runtime
+        // simulation uses UpdatePoliticalPartiesIncremental().
         private static void UpdatePoliticalParties()
         {
             List<Kingdom> kingdoms = GetKingdomsSafe();
-
             for (int k = 0; k < kingdoms.Count; k++)
             {
-                Kingdom kingdom = kingdoms[k];
+                UpdatePoliticalPartiesForKingdom(kingdoms[k]);
+            }
+        }
 
-                if (
-                    kingdom == null ||
-                    kingdom.data == null
-                )
+        private static void UpdatePoliticalPartiesForKingdom(Kingdom kingdom)
+        {
+            if (
+                kingdom == null ||
+                kingdom.data == null
+            )
+            {
+                return;
+            }
+
+            EnsurePoliticalPartySchema(kingdom);
+
+            List<PoliticalParty> parties =
+                LoadPoliticalPartiesInternal(kingdom, false);
+
+            // PARTY AVAILABILITY FIX: competitive and explicit one-party
+            // systems must not wait for an opposition movement before the
+            // first party can exist. The state ideology is intentionally not
+            // represented by a political movement, so the old movement-only
+            // creation rule could leave republics and one-party states with
+            // zero parties indefinitely. Seed one state-ideology party when
+            // the political system structurally requires parties.
+            EnsureInstitutionalStateIdeologyParty(
+                kingdom,
+                parties
+            );
+
+            AggregatePartySupportFromCities(
+                kingdom,
+                parties
+            );
+            UpdatePartySupportHistorySnapshots(
+                kingdom,
+                parties
+            );
+
+            // Do not found several brand-new parties inside the same kingdom
+            // in one frame. Deferred ideologies remain eligible on the next
+            // normal political pass, preserving eventual behaviour.
+            int formationsThisKingdom = 0;
+
+            for (int i = 0; i < IdeologyIds.Length; i++)
+            {
+                string ideology = IdeologyIds[i];
+                string suffix = GetMovementKeySuffix(ideology);
+                int support = GetKingdomIdeologySupport(
+                    kingdom,
+                    ideology
+                );
+                int movementActive = GetKingdomIntData(
+                    kingdom,
+                    MovementActivePrefix + suffix,
+                    0
+                );
+                int movementRadicalism = GetKingdomIntData(
+                    kingdom,
+                    MovementRadicalismPrefix + suffix,
+                    20
+                );
+
+                List<PoliticalParty> ideologyParties =
+                    GetPartiesForIdeology(parties, ideology);
+
+                if (ideologyParties.Count == 0)
                 {
+                    if (
+                        formationsThisKingdom == 0 &&
+                        movementActive != 0 &&
+                        support >= PartyFormationThreshold
+                    )
+                    {
+                        PoliticalParty created = CreatePoliticalParty(
+                            kingdom,
+                            ideology,
+                            movementRadicalism,
+                            false
+                        );
+
+                        if (created != null)
+                        {
+                            formationsThisKingdom++;
+                            parties.Add(created);
+
+                            PublishPoliticalEvent(
+                                string.Format(
+                                    LM.Get("ukiol_event_party_formed"),
+                                    created.Name,
+                                    GetWorldObjectDisplayName(kingdom),
+                                    GetIdeologyName(ideology)
+                                ),
+                                kingdom,
+                                null,
+                                created.LeaderActor,
+                                GetIdeologyIconPath(ideology),
+                                "party_formed_" + created.Id,
+                                20f
+                            );
+                        }
+                    }
+
                     continue;
                 }
 
-                EnsurePoliticalPartySchema(kingdom);
+                bool preserveInstitutionalStateParty =
+                    ideology == GetStateIdeology(kingdom) &&
+                    PoliticalSystemRequiresPartyInstitution(
+                        GetPoliticalSystem(kingdom)
+                    );
 
-                List<PoliticalParty> parties =
-                    LoadPoliticalPartiesInternal(kingdom, false);
-
-                AggregatePartySupportFromCities(
-                    kingdom,
-                    parties
-                );
-                UpdatePartySupportHistorySnapshots(
-                    kingdom,
-                    parties
-                );
-
-                for (int i = 0; i < IdeologyIds.Length; i++)
+                if (
+                    !preserveInstitutionalStateParty &&
+                    movementActive == 0 &&
+                    support <= PartyDissolutionThreshold
+                )
                 {
-                    string ideology = IdeologyIds[i];
-                    string suffix = GetMovementKeySuffix(ideology);
-                    int support = GetKingdomIdeologySupport(
-                        kingdom,
-                        ideology
-                    );
-                    int movementActive = GetKingdomIntData(
-                        kingdom,
-                        MovementActivePrefix + suffix,
-                        0
-                    );
-                    int movementRadicalism = GetKingdomIntData(
-                        kingdom,
-                        MovementRadicalismPrefix + suffix,
-                        20
-                    );
+                    int dissolutionYear = GetWorldYearSafe();
+                    bool keptFreshSplinter = false;
 
-                    List<PoliticalParty> ideologyParties =
-                        GetPartiesForIdeology(parties, ideology);
-
-                    if (ideologyParties.Count == 0)
+                    for (int p = 0; p < ideologyParties.Count; p++)
                     {
+                        PoliticalParty candidate = ideologyParties[p];
+
                         if (
-                            movementActive != 0 &&
-                            support >= PartyFormationThreshold
+                            IsFreshPoliticalPartySplinter(
+                                candidate,
+                                dissolutionYear
+                            )
                         )
                         {
-                            PoliticalParty created = CreatePoliticalParty(
-                                kingdom,
-                                ideology,
-                                movementRadicalism,
-                                false
-                            );
-
-                            if (created != null)
-                            {
-                                parties.Add(created);
-
-                                PublishPoliticalEvent(
-                                    string.Format(
-                                        LM.Get("ukiol_event_party_formed"),
-                                        created.Name,
-                                        GetWorldObjectDisplayName(kingdom),
-                                        GetIdeologyName(ideology)
-                                    ),
-                                    kingdom,
-                                    null,
-                                    created.LeaderActor,
-                                    GetIdeologyIconPath(ideology),
-                                    "party_formed_" + created.Id,
-                                    20f
-                                );
-                            }
+                            keptFreshSplinter = true;
+                            continue;
                         }
 
-                        continue;
+                        DeactivatePoliticalParty(
+                            kingdom,
+                            candidate
+                        );
                     }
 
-                    if (
-                        movementActive == 0 &&
-                        support <= PartyDissolutionThreshold
-                    )
+                    if (!keptFreshSplinter)
                     {
-                        for (int p = 0; p < ideologyParties.Count; p++)
-                        {
-                            DeactivatePoliticalParty(
-                                kingdom,
-                                ideologyParties[p]
-                            );
-                        }
-
                         continue;
                     }
-
-                    RefreshPartyLeaders(
-                        kingdom,
-                        ideologyParties
-                    );
-
-                    TrySplitPoliticalParty(
-                        kingdom,
-                        ideology,
-                        support,
-                        movementActive,
-                        movementRadicalism,
-                        ideologyParties,
-                        parties
-                    );
                 }
 
-                parties = LoadPoliticalPartiesInternal(
+                RefreshPartyLeaders(
                     kingdom,
-                    false
+                    ideologyParties
                 );
-                UpdateRegionalPartySupport(
+
+                TrySplitPoliticalParty(
                     kingdom,
-                    parties
-                );
-                UpdatePartyTraitsAndEvolution(
-                    kingdom,
-                    parties
-                );
-                // Trait changes affect the next regional tick. Recalculate
-                // the national aggregate now without moving city support twice.
-                AggregatePartySupportFromCities(
-                    kingdom,
-                    parties
-                );
-                UpdatePartyLeadingHistory(
-                    kingdom,
-                    parties
-                );
-                SyncLegacyPartyCompatibility(
-                    kingdom,
+                    ideology,
+                    support,
+                    movementActive,
+                    movementRadicalism,
+                    ideologyParties,
                     parties
                 );
             }
+
+            parties = LoadPoliticalPartiesInternal(
+                kingdom,
+                false
+            );
+            UpdateRegionalPartySupport(
+                kingdom,
+                parties
+            );
+            UpdatePartyTraitsAndEvolution(
+                kingdom,
+                parties
+            );
+            UpdatePartyInternalFactions(
+                kingdom,
+                parties
+            );
+            // Trait changes and party splinters affect the next regional tick.
+            // Recalculate the national aggregate now without moving city support twice.
+            // the national aggregate now without moving city support twice.
+            AggregatePartySupportFromCities(
+                kingdom,
+                parties
+            );
+            UpdatePartyCoalitions(
+                kingdom,
+                parties
+            );
+            UpdatePartyLeadingHistory(
+                kingdom,
+                parties
+            );
+            SyncLegacyPartyCompatibility(
+                kingdom,
+                parties
+            );
         }
 
         private static void EnsurePoliticalPartySchema(
@@ -823,7 +1019,8 @@ namespace Lous12.PoliticalWorld
         private static List<PoliticalParty>
             LoadPoliticalPartiesInternal(
                 Kingdom kingdom,
-                bool includeInactive
+                bool includeInactive,
+                bool allowInitialization = true
             )
         {
             List<PoliticalParty> result =
@@ -834,7 +1031,22 @@ namespace Lous12.PoliticalWorld
                 return result;
             }
 
-            EnsurePoliticalPartySchema(kingdom);
+            if (allowInitialization)
+            {
+                EnsurePoliticalPartySchema(kingdom);
+            }
+            else
+            {
+                int schema = GetKingdomIntData(
+                    kingdom,
+                    PartySchemaVersionDataKey,
+                    0
+                );
+                if (schema < PartySchemaVersion)
+                {
+                    return result;
+                }
+            }
 
             int count = ClampInt(
                 GetKingdomIntData(
@@ -897,6 +1109,18 @@ namespace Lous12.PoliticalWorld
                     0,
                     5
                 );
+                party.NameStyle = ClampInt(
+                    GetKingdomIntData(
+                        kingdom,
+                        PartySlotKey(
+                            PartyV2NameStylePrefix,
+                            slot
+                        ),
+                        0
+                    ),
+                    0,
+                    1
+                );
                 string customPartyName = GetKingdomStringData(
                     kingdom,
                     PartySlotKey(
@@ -908,7 +1132,9 @@ namespace Lous12.PoliticalWorld
                 party.Name = string.IsNullOrWhiteSpace(customPartyName)
                     ? GetPartyLocalizedName(
                         ideology,
-                        party.NameVariant
+                        party.NameVariant,
+                        kingdom,
+                        party.NameStyle
                     )
                     : customPartyName.Trim();
                 party.LeaderIdentity = GetKingdomStringData(
@@ -1025,14 +1251,17 @@ namespace Lous12.PoliticalWorld
                         party.Id,
                         slot
                     );
-                    SetKingdomIntData(
-                        kingdom,
-                        PartySlotKey(
-                            PartyV2ColorSeedPrefix,
-                            slot
-                        ),
-                        party.ColorSeed
-                    );
+                    if (allowInitialization)
+                    {
+                        SetKingdomIntData(
+                            kingdom,
+                            PartySlotKey(
+                                PartyV2ColorSeedPrefix,
+                                slot
+                            ),
+                            party.ColorSeed
+                        );
+                    }
                 }
                 party.OriginCityId = GetKingdomStringData(
                     kingdom,
@@ -1067,7 +1296,10 @@ namespace Lous12.PoliticalWorld
                     ""
                 );
 
-                if (string.IsNullOrEmpty(party.OriginCityId))
+                if (
+                    allowInitialization &&
+                    string.IsNullOrEmpty(party.OriginCityId)
+                )
                 {
                     City origin = ChoosePartyOriginCity(
                         kingdom,
@@ -1098,18 +1330,49 @@ namespace Lous12.PoliticalWorld
                     }
                 }
 
-                party.Traits = LoadOrInitializePartyTraits(
-                    kingdom,
-                    party
-                );
+                if (allowInitialization)
+                {
+                    party.Traits = LoadOrInitializePartyTraits(
+                        kingdom,
+                        party
+                    );
+                }
+                else
+                {
+                    string serializedTraits = GetKingdomStringData(
+                        kingdom,
+                        PartySlotKey(
+                            PartyV2TraitsPrefix,
+                            slot
+                        ),
+                        ""
+                    );
+                    party.Traits = ParsePartyTraits(serializedTraits);
+                    if (party.Traits.Count == 0)
+                    {
+                        party.Traits = BuildInitialPartyTraits(
+                            kingdom,
+                            party.Ideology,
+                            party.Radicalism,
+                            party.Strategy,
+                            party.ForeignStance,
+                            party.Id,
+                            false
+                        );
+                    }
+                }
+
                 party.History = LoadPartyHistory(
                     kingdom,
                     party
                 );
-                EnsurePartyHistoryInitialized(
-                    kingdom,
-                    party
-                );
+                if (allowInitialization)
+                {
+                    EnsurePartyHistoryInitialized(
+                        kingdom,
+                        party
+                    );
+                }
                 party.SupportHistory = LoadPartySupportHistory(
                     kingdom,
                     party
@@ -1142,14 +1405,17 @@ namespace Lous12.PoliticalWorld
                     )
                     {
                         child.ParentPartyName = parent.Name;
-                        SetKingdomStringData(
-                            kingdom,
-                            PartySlotKey(
-                                PartyV2ParentPartyNamePrefix,
-                                child.Slot
-                            ),
-                            child.ParentPartyName
-                        );
+                        if (allowInitialization)
+                        {
+                            SetKingdomStringData(
+                                kingdom,
+                                PartySlotKey(
+                                    PartyV2ParentPartyNamePrefix,
+                                    child.Slot
+                                ),
+                                child.ParentPartyName
+                            );
+                        }
                         break;
                     }
                 }
@@ -1158,55 +1424,58 @@ namespace Lous12.PoliticalWorld
             // dev3 migration: old saves knew the parent ID before party
             // biographies existed. Once the parent name is resolved, backfill
             // the split on both biographies without inventing any other past.
-            for (int i = 0; i < result.Count; i++)
+            if (allowInitialization)
             {
-                PoliticalParty child = result[i];
-                if (
-                    child == null ||
-                    string.IsNullOrEmpty(child.ParentPartyId) ||
-                    string.IsNullOrEmpty(child.ParentPartyName)
-                )
+                for (int i = 0; i < result.Count; i++)
                 {
-                    continue;
-                }
-
-                // Never invent a split date for migrated parties whose
-                // founding year was not tracked. Otherwise loading the same
-                // old save in a later year would append a new fake split
-                // event every time.
-                if (child.FoundedYear <= 0)
-                {
-                    continue;
-                }
-
-                int splitYear = child.FoundedYear;
-
-                RecordPartyHistoryEvent(
-                    kingdom,
-                    child,
-                    PartyHistorySplitFrom,
-                    child.ParentPartyName,
-                    "",
-                    splitYear
-                );
-
-                for (int j = 0; j < result.Count; j++)
-                {
-                    PoliticalParty parent = result[j];
+                    PoliticalParty child = result[i];
                     if (
-                        parent != null &&
-                        parent.Id == child.ParentPartyId
+                        child == null ||
+                        string.IsNullOrEmpty(child.ParentPartyId) ||
+                        string.IsNullOrEmpty(child.ParentPartyName)
                     )
                     {
-                        RecordPartyHistoryEvent(
-                            kingdom,
-                            parent,
-                            PartyHistorySplitChild,
-                            child.Name,
-                            "",
-                            splitYear
-                        );
-                        break;
+                        continue;
+                    }
+
+                    // Never invent a split date for migrated parties whose
+                    // founding year was not tracked. Otherwise loading the same
+                    // old save in a later year would append a new fake split
+                    // event every time.
+                    if (child.FoundedYear <= 0)
+                    {
+                        continue;
+                    }
+
+                    int splitYear = child.FoundedYear;
+
+                    RecordPartyHistoryEvent(
+                        kingdom,
+                        child,
+                        PartyHistorySplitFrom,
+                        child.ParentPartyName,
+                        "",
+                        splitYear
+                    );
+
+                    for (int j = 0; j < result.Count; j++)
+                    {
+                        PoliticalParty parent = result[j];
+                        if (
+                            parent != null &&
+                            parent.Id == child.ParentPartyId
+                        )
+                        {
+                            RecordPartyHistoryEvent(
+                                kingdom,
+                                parent,
+                                PartyHistorySplitChild,
+                                child.Name,
+                                "",
+                                splitYear
+                            );
+                            break;
+                        }
                     }
                 }
             }
@@ -1229,7 +1498,23 @@ namespace Lous12.PoliticalWorld
                 kingdom,
                 parties
             );
-            UpdatePartySupportHistorySnapshots(
+
+            return parties;
+        }
+
+        private static List<PoliticalParty>
+            GetPoliticalPartiesReadOnly(
+                Kingdom kingdom
+            )
+        {
+            List<PoliticalParty> parties =
+                LoadPoliticalPartiesInternal(
+                    kingdom,
+                    false,
+                    false
+                );
+
+            AggregatePartySupportFromCities(
                 kingdom,
                 parties
             );
@@ -1266,6 +1551,83 @@ namespace Lous12.PoliticalWorld
             }
 
             return result;
+        }
+
+        private static bool PoliticalSystemRequiresPartyInstitution(
+            string system
+        )
+        {
+            return
+                system == PoliticalSystemCompetitiveId ||
+                system == PoliticalSystemOnePartyId ||
+                system == PoliticalSystemSovietOnePartyId;
+        }
+
+        private static void EnsureInstitutionalStateIdeologyParty(
+            Kingdom kingdom,
+            List<PoliticalParty> parties
+        )
+        {
+            if (kingdom == null || parties == null)
+            {
+                return;
+            }
+
+            string system = GetPoliticalSystem(kingdom);
+            if (!PoliticalSystemRequiresPartyInstitution(system))
+            {
+                return;
+            }
+
+            string stateIdeology = GetStateIdeology(kingdom);
+            if (!IsValidIdeology(stateIdeology))
+            {
+                return;
+            }
+
+            List<PoliticalParty> stateParties =
+                GetPartiesForIdeology(
+                    parties,
+                    stateIdeology
+                );
+            if (stateParties.Count > 0)
+            {
+                return;
+            }
+
+            int radicalism = 20;
+            string current = GetStateIdeologyCurrent(kingdom);
+            if (!string.IsNullOrEmpty(current))
+            {
+                radicalism = ClampInt(
+                    GetIdeologyRadicalismScore(current),
+                    0,
+                    100
+                );
+            }
+
+            PoliticalParty created = CreatePoliticalParty(
+                kingdom,
+                stateIdeology,
+                radicalism,
+                false
+            );
+            if (created == null)
+            {
+                return;
+            }
+
+            parties.Add(created);
+
+            if (VerbosePoliticalDiagnostics)
+            {
+                LogInfo(
+                    "[PW-PARTY-BOOTSTRAP] created state party kingdom=" +
+                    GetWorldObjectDisplayName(kingdom) +
+                    " ideology=" + stateIdeology +
+                    " system=" + system
+                );
+            }
         }
 
         private static PoliticalParty CreatePoliticalParty(
@@ -1376,31 +1738,12 @@ namespace Lous12.PoliticalWorld
 
             int slot = -1;
 
-            for (int i = 0; i < count; i++)
+            // Preserve inactive parties as historical records while the bounded
+            // slot pool still has unused capacity. Only recycle an inactive
+            // slot after all MaxPoliticalParties slots have existed at least
+            // once; this matches the public API's deactivate-not-delete model.
+            if (count < MaxPoliticalParties)
             {
-                if (
-                    GetKingdomIntData(
-                        kingdom,
-                        PartySlotKey(
-                            PartyV2ActivePrefix,
-                            i
-                        ),
-                        0
-                    ) == 0
-                )
-                {
-                    slot = i;
-                    break;
-                }
-            }
-
-            if (slot < 0)
-            {
-                if (count >= MaxPoliticalParties)
-                {
-                    return null;
-                }
-
                 slot = count;
                 count++;
                 SetKingdomIntData(
@@ -1408,6 +1751,31 @@ namespace Lous12.PoliticalWorld
                     PartySlotCountDataKey,
                     count
                 );
+            }
+            else
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    if (
+                        GetKingdomIntData(
+                            kingdom,
+                            PartySlotKey(
+                                PartyV2ActivePrefix,
+                                i
+                            ),
+                            0
+                        ) == 0
+                    )
+                    {
+                        slot = i;
+                        break;
+                    }
+                }
+
+                if (slot < 0)
+                {
+                    return null;
+                }
             }
 
             int serial = GetKingdomIntData(
@@ -1522,6 +1890,7 @@ namespace Lous12.PoliticalWorld
                 PartySlotKey(PartyV2IdeologyPrefix, slot),
                 ideology
             );
+            int nameStyle = ChoosePartyNameStyle(id);
             SetKingdomIntData(
                 kingdom,
                 PartySlotKey(
@@ -1529,6 +1898,14 @@ namespace Lous12.PoliticalWorld
                     slot
                 ),
                 ClampInt(nameVariant, 0, 5)
+            );
+            SetKingdomIntData(
+                kingdom,
+                PartySlotKey(
+                    PartyV2NameStylePrefix,
+                    slot
+                ),
+                nameStyle
             );
             SetKingdomStringData(
                 kingdom,
@@ -1682,6 +2059,59 @@ namespace Lous12.PoliticalWorld
                 ),
                 ""
             );
+            SetKingdomIntData(
+                kingdom,
+                PartySlotKey(
+                    PartyFactionPressurePrefix,
+                    slot
+                ),
+                0
+            );
+            SetKingdomIntData(
+                kingdom,
+                PartySlotKey(
+                    PartyFactionLastYearPrefix,
+                    slot
+                ),
+                year
+            );
+            SetKingdomIntData(
+                kingdom,
+                PartySlotKey(
+                    PartyFactionLastSplitYearPrefix,
+                    slot
+                ),
+                0
+            );
+
+            // Slots are reused after a party dissolves. History belongs to the
+            // party identity, not the numeric slot, so a successor in the same
+            // slot must never inherit the previous organization's biography or
+            // support graph/timestamp.
+            SetKingdomStringData(
+                kingdom,
+                PartySlotKey(
+                    PartyV2HistoryPrefix,
+                    slot
+                ),
+                ""
+            );
+            SetKingdomStringData(
+                kingdom,
+                PartySlotKey(
+                    PartyV2SupportHistoryPrefix,
+                    slot
+                ),
+                ""
+            );
+            SetKingdomIntData(
+                kingdom,
+                PartySlotKey(
+                    PartyV2SupportHistoryLastYearPrefix,
+                    slot
+                ),
+                0
+            );
 
             PoliticalParty result =
                 new PoliticalParty();
@@ -1694,9 +2124,12 @@ namespace Lous12.PoliticalWorld
                 0,
                 5
             );
+            result.NameStyle = nameStyle;
             result.Name = GetPartyLocalizedName(
                 ideology,
-                result.NameVariant
+                result.NameVariant,
+                kingdom,
+                result.NameStyle
             );
             result.LeaderIdentity = leaderIdentity;
             result.LeaderName = leaderName;
@@ -2476,6 +2909,58 @@ namespace Lous12.PoliticalWorld
                 : jitter == 1
                     ? "hawkish"
                     : "pragmatic";
+        }
+
+        private static int ChoosePartyNameStyle(string partyId)
+        {
+            int roll = (StablePartyHash(
+                (partyId ?? "") + "|name_style"
+            ) & int.MaxValue) % 100;
+            return roll < CountryBasedPartyNameChance ? 1 : 0;
+        }
+
+        private static string GetPartyLocalizedName(
+            string ideology,
+            int variant,
+            Kingdom kingdom,
+            int nameStyle
+        )
+        {
+            if (nameStyle == 1 && kingdom != null)
+            {
+                // Party templates use the stable base country name. Otherwise
+                // we get gems like "Communist Party of People's Republic of X".
+                string kingdomName = GetBaseCountryName(kingdom);
+                if (!string.IsNullOrWhiteSpace(kingdomName))
+                {
+                    string countryKey =
+                        "ukiol_party_country_name_" +
+                        GetMovementKeySuffix(ideology) +
+                        "_" +
+                        (ClampInt(variant, 0, 5) % 2);
+                    string countryTemplate = LM.Get(countryKey);
+
+                    if (
+                        !string.IsNullOrEmpty(countryTemplate) &&
+                        countryTemplate != countryKey
+                    )
+                    {
+                        try
+                        {
+                            return string.Format(
+                                countryTemplate,
+                                kingdomName
+                            );
+                        }
+                        catch
+                        {
+                            // Fall through to the regular ideology name.
+                        }
+                    }
+                }
+            }
+
+            return GetPartyLocalizedName(ideology, variant);
         }
 
         private static string GetPartyLocalizedName(

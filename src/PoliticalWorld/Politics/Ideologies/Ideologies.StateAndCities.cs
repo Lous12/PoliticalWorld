@@ -110,6 +110,8 @@ namespace Lous12.PoliticalWorld
                             ""
                         );
                     }
+
+                    RefreshPoliticalCountryDisplayName(kingdom);
                 }
 
                 return true;
@@ -287,14 +289,9 @@ namespace Lous12.PoliticalWorld
             string identity = GetStableObjectIdentity(kingdom);
             int hash = string.IsNullOrEmpty(identity)
                 ? 0
-                : identity.GetHashCode();
+                : StablePartyHash(identity);
 
-            if (hash == int.MinValue)
-            {
-                hash = 0;
-            }
-
-            int index = Math.Abs(hash) % choices.Length;
+            int index = hash % choices.Length;
             return choices[index];
         }
 
@@ -705,6 +702,8 @@ namespace Lous12.PoliticalWorld
 
             int total = 0;
             int matching = 0;
+            Kingdom kingdom = GetKingdomFromObject(city);
+            string fallbackIdeology = GetStateIdeology(kingdom);
             int sample = Math.Min(
                 IdeologySupportSamplePerCity,
                 units.Count
@@ -733,14 +732,7 @@ namespace Lous12.PoliticalWorld
 
                 if (!IsValidIdeology(current))
                 {
-                    Kingdom kingdom = GetKingdomFromObject(city);
-                    string state = GetStateIdeology(kingdom);
-                    current = PickInitialCitizenIdeology(
-                        city,
-                        kingdom,
-                        state
-                    );
-                    SetCitizenIdeology(actor, current);
+                    current = fallbackIdeology;
                 }
 
                 if (!IsValidIdeology(current))
@@ -893,12 +885,12 @@ namespace Lous12.PoliticalWorld
 
                 if (!IsValidIdeology(ideology))
                 {
-                    ideology = PickInitialCitizenIdeology(
-                        city,
-                        kingdom,
-                        stateIdeology
-                    );
-                    SetCitizenIdeology(actor, ideology);
+                    ideology = stateIdeology;
+                }
+
+                if (!IsValidIdeology(ideology))
+                {
+                    continue;
                 }
 
                 int ideologyIndex = GetIdeologyIndex(ideology);
@@ -1092,12 +1084,12 @@ namespace Lous12.PoliticalWorld
                 string ideology = GetCitizenIdeology(actor);
                 if (!IsValidIdeology(ideology))
                 {
-                    ideology = PickInitialCitizenIdeology(
-                        city,
-                        kingdom,
-                        stateIdeology
-                    );
-                    SetCitizenIdeology(actor, ideology);
+                    ideology = stateIdeology;
+                }
+
+                if (!IsValidIdeology(ideology))
+                {
+                    continue;
                 }
 
                 int index = GetIdeologyIndex(ideology);

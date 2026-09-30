@@ -43,6 +43,6 @@ Small projects are welcome too.
 ## For addon authors
 
 - [First addon in 10 minutes](GETTING_STARTED.md)
-- [API 1.9 Reference](API_REFERENCE_1_9.md)
+- [API 1.19 Reference](API_REFERENCE_1_19.md)
 - [Using AI](using-ai.md)
 - [What can you build?](what-you-can-build.md)

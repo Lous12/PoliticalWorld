@@ -48,7 +48,7 @@ namespace Lous12.PoliticalWorld
 
             List<City> cities = GetCitiesSafe(kingdom);
             List<PoliticalParty> parties =
-                GetPoliticalParties(kingdom);
+                GetPoliticalPartiesReadOnly(kingdom);
             City capital = GetMemberValue(
                 kingdom,
                 "capital",
@@ -72,12 +72,6 @@ namespace Lous12.PoliticalWorld
                     out dominantIdeology,
                     out dominantSupport,
                     out tension
-                );
-
-                EnsureAndUpdateCityPoliticalMemory(
-                    city,
-                    kingdom,
-                    stateIdeology
                 );
 
                 string traditionIdeology;
@@ -209,6 +203,7 @@ namespace Lous12.PoliticalWorld
             public string Id;
             public string Ideology;
             public int NameVariant;
+            public int NameStyle;
             public string Name;
             public string LeaderIdentity;
             public string LeaderName;
@@ -303,7 +298,7 @@ namespace Lous12.PoliticalWorld
             List<PartyOverviewEntry> result =
                 new List<PartyOverviewEntry>();
             List<PoliticalParty> parties =
-                GetPoliticalParties(kingdom);
+                GetPoliticalPartiesReadOnly(kingdom);
 
             for (int i = 0; i < parties.Count; i++)
             {
@@ -376,6 +371,11 @@ namespace Lous12.PoliticalWorld
             private static Kingdom _selectedKingdom;
             private static Font _font;
 
+            public static void ResetWorldSelection()
+            {
+                _selectedKingdom = null;
+            }
+
             protected override void Init()
             {
                 if (_font == null)
@@ -402,7 +402,7 @@ namespace Lous12.PoliticalWorld
 
                 _selectedKingdom = kingdom;
                 Instance.RefreshContent();
-                Instance.ScrollWindowComponent.clickShow();
+                ScrollWindow.showWindow(WindowId);
                 Instance.ResetScrollToTop();
             }
 
@@ -1015,19 +1015,53 @@ namespace Lous12.PoliticalWorld
             }
         }
 
-        private sealed class PartyRenameWindow
-            : SingleAutoLayoutWindow<PartyRenameWindow>
+        private sealed class PartyEditorWindow
+            : SingleAutoLayoutWindow<PartyEditorWindow>
         {
             private static KingdomWindow _targetWindow;
             private static Kingdom _targetKingdom;
             private static string _targetPartyId = "";
             private static TextInput _nameInput;
             private static Text _partyLabel;
+            private static Text _ideologyLabel;
+            private static Text _supportLabel;
+            private static Text _colorLabel;
+            private static Text _leaderLabel;
+            private static Text _traitLabel;
+            private static Text _traitSelectionLabel;
             private static Text _statusLabel;
+            private static Button _createButton;
+            private static Text _createButtonText;
+            private static bool _createMode;
+            private static int _draftIdeologyIndex;
+            private static int _traitCursor;
+
+            private static readonly string[] PartyEditorTraits =
+            {
+                PartyTraitMass,
+                PartyTraitElite,
+                PartyTraitDisciplined,
+                PartyTraitFactional,
+                PartyTraitReformist,
+                PartyTraitPopulist,
+                PartyTraitRevolutionary,
+                PartyTraitMilitarized,
+                PartyTraitCorrupt
+            };
+
+            public static void ResetWorldSelection()
+            {
+                _targetWindow = null;
+                _targetKingdom = null;
+                _targetPartyId = "";
+                _createMode = false;
+                _draftIdeologyIndex = 0;
+                _traitCursor = 0;
+            }
 
             protected override void Init()
             {
-                GetLayoutGroup().spacing = 7;
+                GetLayoutGroup().spacing = 6;
                 GetLayoutGroup().padding = new RectOffset(6, 6, 10, 10);
 
                 _partyLabel = CreateWindowText(
@@ -1038,6 +1072,16 @@ namespace Lous12.PoliticalWorld
                     13,
                     TextAnchor.MiddleCenter,
                     new Color(1f, 0.84f, 0.38f, 1f)
+                );
+
+                CreateWindowText(
+                    "NameTitle",
+                    LM.Get("ukiol_party_editor_name"),
+                    200f,
+                    20f,
+                    10,
+                    TextAnchor.MiddleLeft,
+                    new Color(0.78f, 0.84f, 0.88f, 1f)
                 );
 
                 _nameInput = UnityEngine.Object.Instantiate(
@@ -1051,23 +1095,166 @@ namespace Lous12.PoliticalWorld
                 _nameInput.Setup("", delegate(string value) { });
 
                 AddActionButton(
-                    "Save",
+                    "SaveName",
                     LM.Get("ukiol_party_rename_save"),
                     SaveName,
                     new Color(0.18f, 0.34f, 0.18f, 0.96f)
                 );
                 AddActionButton(
-                    "Reset",
+                    "ResetName",
                     LM.Get("ukiol_party_rename_reset"),
                     ResetName,
                     new Color(0.33f, 0.25f, 0.14f, 0.96f)
+                );
+
+                _createButton = AddActionButton(
+                    "CreateParty",
+                    LM.Get("ukiol_party_editor_begin_create"),
+                    BeginOrCreateParty,
+                    new Color(0.16f, 0.34f, 0.24f, 0.96f)
+                );
+                if (_createButton != null)
+                {
+                    _createButtonText =
+                        _createButton.GetComponentInChildren<Text>();
+                }
+
+                _ideologyLabel = CreateWindowText(
+                    "Ideology",
+                    "",
+                    200f,
+                    26f,
+                    11,
+                    TextAnchor.MiddleCenter,
+                    new Color(0.84f, 0.88f, 0.92f, 1f)
+                );
+                AddActionButton(
+                    "PreviousIdeology",
+                    "◀  " + LM.Get("ukiol_party_editor_previous_ideology"),
+                    PreviousIdeology,
+                    new Color(0.18f, 0.22f, 0.30f, 0.96f)
+                );
+                AddActionButton(
+                    "NextIdeology",
+                    LM.Get("ukiol_party_editor_next_ideology") + "  ▶",
+                    NextIdeology,
+                    new Color(0.18f, 0.22f, 0.30f, 0.96f)
+                );
+
+                _supportLabel = CreateWindowText(
+                    "Support",
+                    "",
+                    200f,
+                    26f,
+                    11,
+                    TextAnchor.MiddleCenter,
+                    new Color(0.78f, 0.90f, 0.72f, 1f)
+                );
+                AddActionButton(
+                    "DecreaseSupport",
+                    "−5%  " + LM.Get("ukiol_party_editor_decrease_support"),
+                    DecreaseSupport,
+                    new Color(0.25f, 0.20f, 0.18f, 0.96f)
+                );
+                AddActionButton(
+                    "IncreaseSupport",
+                    "+5%  " + LM.Get("ukiol_party_editor_increase_support"),
+                    IncreaseSupport,
+                    new Color(0.18f, 0.30f, 0.20f, 0.96f)
+                );
+
+                _colorLabel = CreateWindowText(
+                    "Color",
+                    "",
+                    200f,
+                    26f,
+                    11,
+                    TextAnchor.MiddleCenter,
+                    Color.white
+                );
+                AddActionButton(
+                    "PreviousColor",
+                    "◀  " + LM.Get("ukiol_party_editor_previous_color"),
+                    PreviousColor,
+                    new Color(0.23f, 0.20f, 0.27f, 0.96f)
+                );
+                AddActionButton(
+                    "NextColor",
+                    LM.Get("ukiol_party_editor_next_color") + "  ▶",
+                    NextColor,
+                    new Color(0.23f, 0.20f, 0.27f, 0.96f)
+                );
+
+                _leaderLabel = CreateWindowText(
+                    "Leader",
+                    "",
+                    200f,
+                    30f,
+                    10,
+                    TextAnchor.MiddleCenter,
+                    new Color(0.84f, 0.88f, 0.92f, 1f)
+                );
+                AddActionButton(
+                    "PreviousLeader",
+                    "◀  " + LM.Get("ukiol_party_editor_previous_leader"),
+                    PreviousLeader,
+                    new Color(0.22f, 0.24f, 0.18f, 0.96f)
+                );
+                AddActionButton(
+                    "NextLeader",
+                    LM.Get("ukiol_party_editor_next_leader") + "  ▶",
+                    NextLeader,
+                    new Color(0.22f, 0.24f, 0.18f, 0.96f)
+                );
+                AddActionButton(
+                    "AutoLeader",
+                    LM.Get("ukiol_party_editor_auto_leader"),
+                    AssignLeader,
+                    new Color(0.28f, 0.23f, 0.15f, 0.96f)
+                );
+
+                _traitLabel = CreateWindowText(
+                    "Traits",
+                    "",
+                    200f,
+                    36f,
+                    10,
+                    TextAnchor.MiddleCenter,
+                    new Color(0.86f, 0.82f, 0.72f, 1f)
+                );
+                _traitSelectionLabel = CreateWindowText(
+                    "TraitSelection",
+                    "",
+                    200f,
+                    26f,
+                    10,
+                    TextAnchor.MiddleCenter,
+                    new Color(0.78f, 0.84f, 0.88f, 1f)
+                );
+                AddActionButton(
+                    "PreviousTrait",
+                    "◀  " + LM.Get("ukiol_party_editor_previous_trait"),
+                    PreviousTrait,
+                    new Color(0.24f, 0.20f, 0.28f, 0.96f)
+                );
+                AddActionButton(
+                    "NextTrait",
+                    LM.Get("ukiol_party_editor_next_trait") + "  ▶",
+                    NextTrait,
+                    new Color(0.24f, 0.20f, 0.28f, 0.96f)
+                );
+                AddActionButton(
+                    "ToggleTrait",
+                    LM.Get("ukiol_party_editor_toggle_trait"),
+                    ToggleTrait,
+                    new Color(0.30f, 0.22f, 0.30f, 0.96f)
                 );
 
                 _statusLabel = CreateWindowText(
                     "Status",
                     "",
                     200f,
-                    34f,
+                    42f,
                     10,
                     TextAnchor.MiddleCenter,
                     new Color(0.78f, 0.84f, 0.88f, 1f)
@@ -1092,18 +1279,50 @@ namespace Lous12.PoliticalWorld
                 _targetWindow = window;
                 _targetKingdom = kingdom;
                 _targetPartyId = partyId;
-                Instance.RefreshFields();
-                Instance.ScrollWindowComponent.clickShow();
+                _createMode = false;
+                Instance.RefreshFields(false);
+                ScrollWindow.showWindow(WindowId);
+            }
+
+            public static void OpenForCreate(
+                KingdomWindow window,
+                Kingdom kingdom
+            )
+            {
+                if (Instance == null || kingdom == null)
+                {
+                    return;
+                }
+
+                _targetWindow = window;
+                _targetKingdom = kingdom;
+                _targetPartyId = "";
+                _createMode = true;
+                _draftIdeologyIndex = GetDefaultDraftIdeologyIndex(kingdom);
+                if (_nameInput != null)
+                {
+                    _nameInput.input.text = "";
+                }
+                Instance.RefreshFields(false);
+                ScrollWindow.showWindow(WindowId);
             }
 
             public override void OnNormalEnable()
             {
                 base.OnNormalEnable();
-                RefreshFields();
+                RefreshFields(false);
             }
 
-            private void RefreshFields()
+            private void RefreshFields(bool preserveStatus)
             {
+                UpdateCreateButtonLabel();
+
+                if (_createMode)
+                {
+                    RefreshCreateFields(preserveStatus);
+                    return;
+                }
+
                 PoliticalParty party = GetTargetParty();
                 if (party == null)
                 {
@@ -1115,6 +1334,30 @@ namespace Lous12.PoliticalWorld
                     {
                         _nameInput.input.text = "";
                         _nameInput.input.interactable = false;
+                    }
+                    if (_ideologyLabel != null)
+                    {
+                        _ideologyLabel.text = "";
+                    }
+                    if (_supportLabel != null)
+                    {
+                        _supportLabel.text = "";
+                    }
+                    if (_colorLabel != null)
+                    {
+                        _colorLabel.text = "";
+                    }
+                    if (_leaderLabel != null)
+                    {
+                        _leaderLabel.text = "";
+                    }
+                    if (_traitLabel != null)
+                    {
+                        _traitLabel.text = "";
+                    }
+                    if (_traitSelectionLabel != null)
+                    {
+                        _traitSelectionLabel.text = "";
                     }
                     return;
                 }
@@ -1128,10 +1371,270 @@ namespace Lous12.PoliticalWorld
                     _nameInput.input.interactable = true;
                     _nameInput.input.text = party.Name;
                 }
-                if (_statusLabel != null)
+                if (_ideologyLabel != null)
                 {
-                    _statusLabel.text = LM.Get("ukiol_party_rename_hint");
+                    _ideologyLabel.text = string.Format(
+                        LM.Get("ukiol_party_editor_ideology"),
+                        GetIdeologyName(party.Ideology)
+                    );
                 }
+                if (_supportLabel != null)
+                {
+                    _supportLabel.text = string.Format(
+                        LM.Get("ukiol_party_editor_support"),
+                        ClampInt(party.Support, 0, 100)
+                    );
+                }
+                if (_colorLabel != null)
+                {
+                    int seed = NormalizePartyColorSeed(party.ColorSeed);
+                    _colorLabel.text = string.Format(
+                        LM.Get("ukiol_party_editor_color"),
+                        seed + 1,
+                        PartyColorVariantCount
+                    );
+                    _colorLabel.color = GetPartyIdentityColor(
+                        party.Ideology,
+                        seed
+                    );
+                }
+                if (_leaderLabel != null)
+                {
+                    string leader = string.IsNullOrEmpty(party.LeaderName)
+                        ? LM.Get("ukiol_party_leader_unknown")
+                        : party.LeaderName;
+                    _leaderLabel.text = string.Format(
+                        LM.Get("ukiol_party_editor_leader"),
+                        leader
+                    );
+                }
+                RefreshTraitFields(party);
+                if (!preserveStatus && _statusLabel != null)
+                {
+                    _statusLabel.text = LM.Get("ukiol_party_editor_hint");
+                }
+            }
+
+            private static int GetDefaultDraftIdeologyIndex(Kingdom kingdom)
+            {
+                if (IdeologyIds == null || IdeologyIds.Length == 0)
+                {
+                    return 0;
+                }
+
+                string state = GetStateIdeology(kingdom);
+                for (int i = 0; i < IdeologyIds.Length; i++)
+                {
+                    if (IdeologyIds[i] == state)
+                    {
+                        return i;
+                    }
+                }
+
+                IdeologyNode node = GetIdeologyNode(state);
+                if (node != null)
+                {
+                    for (int i = 0; i < IdeologyIds.Length; i++)
+                    {
+                        if (IdeologyIds[i] == node.RootIdeologyId)
+                        {
+                            return i;
+                        }
+                    }
+                }
+
+                return 0;
+            }
+
+            private void UpdateCreateButtonLabel()
+            {
+                if (_createButtonText == null)
+                {
+                    return;
+                }
+
+                _createButtonText.text = _createMode
+                    ? LM.Get("ukiol_party_editor_confirm_create")
+                    : LM.Get("ukiol_party_editor_begin_create");
+            }
+
+            private void RefreshCreateFields(bool preserveStatus)
+            {
+                if (IdeologyIds == null || IdeologyIds.Length == 0)
+                {
+                    return;
+                }
+
+                if (_draftIdeologyIndex < 0 || _draftIdeologyIndex >= IdeologyIds.Length)
+                {
+                    _draftIdeologyIndex = 0;
+                }
+
+                string ideology = IdeologyIds[_draftIdeologyIndex];
+                if (_partyLabel != null)
+                {
+                    _partyLabel.text = LM.Get("ukiol_party_editor_new_party");
+                }
+                if (_nameInput != null)
+                {
+                    _nameInput.input.interactable = true;
+                }
+                if (_ideologyLabel != null)
+                {
+                    _ideologyLabel.text = string.Format(
+                        LM.Get("ukiol_party_editor_ideology"),
+                        GetIdeologyName(ideology)
+                    );
+                }
+                if (_supportLabel != null)
+                {
+                    _supportLabel.text = LM.Get("ukiol_party_editor_create_support_hint");
+                }
+                if (_colorLabel != null)
+                {
+                    _colorLabel.text = LM.Get("ukiol_party_editor_create_color_hint");
+                    _colorLabel.color = GetPartyIdentityColor(ideology, 0);
+                }
+                if (_leaderLabel != null)
+                {
+                    _leaderLabel.text = LM.Get("ukiol_party_editor_create_leader_hint");
+                }
+                if (_traitLabel != null)
+                {
+                    _traitLabel.text = LM.Get("ukiol_party_editor_create_traits_hint");
+                }
+                if (_traitSelectionLabel != null)
+                {
+                    _traitSelectionLabel.text = "";
+                }
+                if (!preserveStatus && _statusLabel != null)
+                {
+                    _statusLabel.text = LM.Get("ukiol_party_editor_create_hint");
+                }
+            }
+
+            private void BeginOrCreateParty()
+            {
+                if (!_createMode)
+                {
+                    _createMode = true;
+                    PoliticalParty current = GetTargetParty();
+                    if (current != null && IdeologyIds != null)
+                    {
+                        for (int i = 0; i < IdeologyIds.Length; i++)
+                        {
+                            if (IdeologyIds[i] == current.Ideology)
+                            {
+                                _draftIdeologyIndex = i;
+                                break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        _draftIdeologyIndex = GetDefaultDraftIdeologyIndex(_targetKingdom);
+                    }
+                    _targetPartyId = "";
+                    if (_nameInput != null)
+                    {
+                        _nameInput.input.text = "";
+                    }
+                    RefreshFields(false);
+                    return;
+                }
+
+                if (
+                    _targetKingdom == null ||
+                    IdeologyIds == null ||
+                    IdeologyIds.Length == 0
+                )
+                {
+                    return;
+                }
+
+                if (_draftIdeologyIndex < 0 || _draftIdeologyIndex >= IdeologyIds.Length)
+                {
+                    _draftIdeologyIndex = 0;
+                }
+
+                string ideology = IdeologyIds[_draftIdeologyIndex];
+                string customName = _nameInput == null
+                    ? ""
+                    : NormalizePartyCustomName(_nameInput.input.text);
+                int radicalism = GetKingdomIntData(
+                    _targetKingdom,
+                    MovementRadicalismPrefix + GetMovementKeySuffix(ideology),
+                    20
+                );
+
+                string partyId = ScenarioBridge.CreateKingdomParty(
+                    _targetKingdom,
+                    ideology,
+                    radicalism,
+                    customName
+                );
+                if (string.IsNullOrEmpty(partyId))
+                {
+                    SetStatus(LM.Get("ukiol_party_editor_create_failed"));
+                    return;
+                }
+
+                _targetPartyId = partyId;
+                _createMode = false;
+
+                if (_targetWindow != null)
+                {
+                    int windowId = _targetWindow.GetInstanceID();
+                    _kingdomPoliticsSelectedPartyIds[windowId] = partyId;
+                    _kingdomPoliticsSelectedPartyKingdomIds[windowId] =
+                        GetStableObjectIdentity(_targetKingdom);
+                }
+
+                SetStatus(LM.Get("ukiol_party_editor_created"));
+                RefreshPartyProfile();
+                RefreshFields(true);
+            }
+
+            private void RefreshTraitFields(PoliticalParty party)
+            {
+                if (_traitLabel != null)
+                {
+                    string formatted = party == null
+                        ? ""
+                        : FormatPartyTraits(party.Traits);
+                    if (string.IsNullOrEmpty(formatted))
+                    {
+                        formatted = LM.Get("ukiol_party_traits_none");
+                    }
+                    _traitLabel.text = string.Format(
+                        LM.Get("ukiol_party_editor_traits"),
+                        formatted
+                    );
+                }
+
+                if (
+                    _traitSelectionLabel == null ||
+                    PartyEditorTraits == null ||
+                    PartyEditorTraits.Length == 0
+                )
+                {
+                    return;
+                }
+
+                if (_traitCursor < 0 || _traitCursor >= PartyEditorTraits.Length)
+                {
+                    _traitCursor = 0;
+                }
+
+                string trait = PartyEditorTraits[_traitCursor];
+                bool enabled = party != null && HasPartyTrait(party, trait);
+                _traitSelectionLabel.text = string.Format(
+                    LM.Get("ukiol_party_editor_trait_selected"),
+                    GetPartyTraitLocalizedName(trait),
+                    enabled
+                        ? LM.Get("ukiol_party_editor_trait_enabled")
+                        : LM.Get("ukiol_party_editor_trait_disabled")
+                );
             }
 
             private static PoliticalParty GetTargetParty()
@@ -1145,16 +1648,19 @@ namespace Lous12.PoliticalWorld
                 }
 
                 return FindPoliticalPartyById(
-                    LoadPoliticalPartiesInternal(
-                        _targetKingdom,
-                        true
-                    ),
+                    GetPoliticalParties(_targetKingdom),
                     _targetPartyId
                 );
             }
 
             private void SaveName()
             {
+                if (_createMode)
+                {
+                    SetStatus(LM.Get("ukiol_party_editor_create_hint"));
+                    return;
+                }
+
                 PoliticalParty party = GetTargetParty();
                 if (party == null || _nameInput == null)
                 {
@@ -1165,28 +1671,39 @@ namespace Lous12.PoliticalWorld
                     _nameInput.input.text
                 );
 
-                SetKingdomStringData(
+                if (string.IsNullOrEmpty(value))
+                {
+                    ResetName();
+                    return;
+                }
+
+                bool changed = ScenarioBridge.RenameKingdomParty(
                     _targetKingdom,
-                    PartySlotKey(
-                        PartyV2CustomNamePrefix,
-                        party.Slot
-                    ),
+                    party.Id,
                     value
                 );
 
-                if (_statusLabel != null)
-                {
-                    _statusLabel.text = string.IsNullOrEmpty(value)
-                        ? LM.Get("ukiol_party_rename_reset_done")
-                        : LM.Get("ukiol_party_rename_saved");
-                }
-
+                SetStatus(
+                    changed
+                        ? LM.Get("ukiol_party_rename_saved")
+                        : LM.Get("ukiol_party_editor_failed")
+                );
                 RefreshPartyProfile();
-                RefreshFields();
+                RefreshFields(true);
             }
 
             private void ResetName()
             {
+                if (_createMode)
+                {
+                    if (_nameInput != null)
+                    {
+                        _nameInput.input.text = "";
+                    }
+                    SetStatus(LM.Get("ukiol_party_editor_create_hint"));
+                    return;
+                }
+
                 PoliticalParty party = GetTargetParty();
                 if (party == null)
                 {
@@ -1202,13 +1719,484 @@ namespace Lous12.PoliticalWorld
                     ""
                 );
 
-                if (_statusLabel != null)
+                SetStatus(LM.Get("ukiol_party_rename_reset_done"));
+                RefreshPartyProfile();
+                RefreshFields(true);
+            }
+
+            private void PreviousIdeology()
+            {
+                CycleIdeology(-1);
+            }
+
+            private void NextIdeology()
+            {
+                CycleIdeology(1);
+            }
+
+            private void CycleIdeology(int direction)
+            {
+                if (IdeologyIds == null || IdeologyIds.Length == 0)
                 {
-                    _statusLabel.text = LM.Get("ukiol_party_rename_reset_done");
+                    return;
                 }
 
+                if (_createMode)
+                {
+                    _draftIdeologyIndex =
+                        (_draftIdeologyIndex + direction) % IdeologyIds.Length;
+                    if (_draftIdeologyIndex < 0)
+                    {
+                        _draftIdeologyIndex += IdeologyIds.Length;
+                    }
+                    RefreshFields(true);
+                    return;
+                }
+
+                PoliticalParty party = GetTargetParty();
+                if (party == null)
+                {
+                    return;
+                }
+
+                int index = 0;
+                for (int i = 0; i < IdeologyIds.Length; i++)
+                {
+                    if (IdeologyIds[i] == party.Ideology)
+                    {
+                        index = i;
+                        break;
+                    }
+                }
+
+                int next = (index + direction) % IdeologyIds.Length;
+                if (next < 0)
+                {
+                    next += IdeologyIds.Length;
+                }
+
+                string ideology = IdeologyIds[next];
+                bool changed = ScenarioBridge.SetKingdomPartyIdeologyPreservingSupport(
+                    _targetKingdom,
+                    party.Id,
+                    ideology
+                );
+
+                SetStatus(
+                    changed
+                        ? string.Format(
+                            LM.Get("ukiol_party_editor_ideology_changed"),
+                            GetIdeologyName(ideology)
+                        )
+                        : LM.Get("ukiol_party_editor_ideology_failed")
+                );
                 RefreshPartyProfile();
-                RefreshFields();
+                RefreshFields(true);
+            }
+
+            private void DecreaseSupport()
+            {
+                AdjustSupport(-5);
+            }
+
+            private void IncreaseSupport()
+            {
+                AdjustSupport(5);
+            }
+
+            private void AdjustSupport(int delta)
+            {
+                if (_createMode)
+                {
+                    SetStatus(LM.Get("ukiol_party_editor_create_first"));
+                    return;
+                }
+
+                PoliticalParty party = GetTargetParty();
+                if (party == null)
+                {
+                    return;
+                }
+
+                int requested = ClampInt(
+                    party.Support + delta,
+                    0,
+                    100
+                );
+                bool changed = ScenarioBridge.SetKingdomPartySupport(
+                    _targetKingdom,
+                    party.Id,
+                    requested
+                );
+
+                PoliticalParty updated = GetTargetParty();
+                int actual = updated == null
+                    ? requested
+                    : ClampInt(updated.Support, 0, 100);
+
+                SetStatus(
+                    changed
+                        ? string.Format(
+                            LM.Get("ukiol_party_editor_support_changed"),
+                            actual
+                        )
+                        : LM.Get("ukiol_party_editor_failed")
+                );
+                RefreshPartyProfile();
+                RefreshFields(true);
+            }
+
+            private void PreviousColor()
+            {
+                CycleColor(-1);
+            }
+
+            private void NextColor()
+            {
+                CycleColor(1);
+            }
+
+            private void CycleColor(int direction)
+            {
+                if (_createMode)
+                {
+                    SetStatus(LM.Get("ukiol_party_editor_create_first"));
+                    return;
+                }
+
+                PoliticalParty party = GetTargetParty();
+                if (party == null)
+                {
+                    return;
+                }
+
+                int next = NormalizePartyColorSeed(
+                    party.ColorSeed + direction
+                );
+                bool changed = ScenarioBridge.SetKingdomPartyColorSeed(
+                    _targetKingdom,
+                    party.Id,
+                    next
+                );
+
+                SetStatus(
+                    changed
+                        ? LM.Get("ukiol_party_editor_color_changed")
+                        : LM.Get("ukiol_party_editor_failed")
+                );
+                RefreshPartyProfile();
+                RefreshFields(true);
+            }
+
+            private void PreviousLeader()
+            {
+                CycleLeader(-1);
+            }
+
+            private void NextLeader()
+            {
+                CycleLeader(1);
+            }
+
+            private void CycleLeader(int direction)
+            {
+                if (_createMode)
+                {
+                    SetStatus(LM.Get("ukiol_party_editor_create_first"));
+                    return;
+                }
+
+                PoliticalParty party = GetTargetParty();
+                if (party == null)
+                {
+                    return;
+                }
+
+                List<Actor> candidates = GetPartyEditorLeaderCandidates(
+                    _targetKingdom,
+                    party
+                );
+                if (candidates.Count == 0)
+                {
+                    SetStatus(LM.Get("ukiol_party_editor_leader_failed"));
+                    return;
+                }
+
+                int current = -1;
+                string currentIdentity = party.LeaderIdentity ?? "";
+                for (int i = 0; i < candidates.Count; i++)
+                {
+                    if (GetStableObjectIdentity(candidates[i]) == currentIdentity)
+                    {
+                        current = i;
+                        break;
+                    }
+                }
+
+                int next;
+                if (current < 0)
+                {
+                    next = direction < 0 ? candidates.Count - 1 : 0;
+                }
+                else
+                {
+                    next = (current + direction) % candidates.Count;
+                    if (next < 0)
+                    {
+                        next += candidates.Count;
+                    }
+                }
+
+                Actor actor = candidates[next];
+                bool changed = ScenarioBridge.SetKingdomPartyLeader(
+                    _targetKingdom,
+                    party.Id,
+                    actor
+                );
+                SetStatus(
+                    changed
+                        ? string.Format(
+                            LM.Get("ukiol_party_editor_leader_changed_to"),
+                            GetWorldObjectDisplayName(actor)
+                        )
+                        : LM.Get("ukiol_party_editor_leader_failed")
+                );
+                RefreshPartyProfile();
+                RefreshFields(true);
+            }
+
+            private static List<Actor> GetPartyEditorLeaderCandidates(
+                Kingdom kingdom,
+                PoliticalParty party
+            )
+            {
+                List<Actor> result = new List<Actor>();
+                if (kingdom == null || party == null)
+                {
+                    return result;
+                }
+
+                HashSet<string> reserved =
+                    ScenarioBridge.GetReservedPartyLeaderIdentities(kingdom, party.Id);
+                HashSet<string> seen = new HashSet<string>();
+                List<Actor> units = GetKingdomUnitsSafe(kingdom);
+
+                for (int i = 0; i < units.Count; i++)
+                {
+                    Actor actor = units[i];
+                    if (
+                        actor == null ||
+                        actor.data == null ||
+                        !actor.isAlive() ||
+                        GetCitizenIdeology(actor) != party.Ideology
+                    )
+                    {
+                        continue;
+                    }
+
+                    string identity = GetStableObjectIdentity(actor);
+                    if (
+                        string.IsNullOrEmpty(identity) ||
+                        reserved.Contains(identity) ||
+                        !seen.Add(identity)
+                    )
+                    {
+                        continue;
+                    }
+
+                    result.Add(actor);
+                    if (result.Count >= 128)
+                    {
+                        break;
+                    }
+                }
+
+                result.Sort(
+                    delegate(Actor left, Actor right)
+                    {
+                        string leftName = GetWorldObjectDisplayName(left) ?? "";
+                        string rightName = GetWorldObjectDisplayName(right) ?? "";
+                        int compare = string.Compare(
+                            leftName,
+                            rightName,
+                            StringComparison.OrdinalIgnoreCase
+                        );
+                        if (compare != 0)
+                        {
+                            return compare;
+                        }
+                        return string.Compare(
+                            GetStableObjectIdentity(left),
+                            GetStableObjectIdentity(right),
+                            StringComparison.Ordinal
+                        );
+                    }
+                );
+
+                return result;
+            }
+
+            private void PreviousTrait()
+            {
+                CycleTrait(-1);
+            }
+
+            private void NextTrait()
+            {
+                CycleTrait(1);
+            }
+
+            private void CycleTrait(int direction)
+            {
+                if (
+                    PartyEditorTraits == null ||
+                    PartyEditorTraits.Length == 0
+                )
+                {
+                    return;
+                }
+
+                _traitCursor = (_traitCursor + direction) % PartyEditorTraits.Length;
+                if (_traitCursor < 0)
+                {
+                    _traitCursor += PartyEditorTraits.Length;
+                }
+                RefreshTraitFields(GetTargetParty());
+            }
+
+            private void ToggleTrait()
+            {
+                if (_createMode)
+                {
+                    SetStatus(LM.Get("ukiol_party_editor_create_first"));
+                    return;
+                }
+
+                PoliticalParty party = GetTargetParty();
+                if (
+                    party == null ||
+                    PartyEditorTraits == null ||
+                    PartyEditorTraits.Length == 0
+                )
+                {
+                    return;
+                }
+
+                if (_traitCursor < 0 || _traitCursor >= PartyEditorTraits.Length)
+                {
+                    _traitCursor = 0;
+                }
+
+                string trait = PartyEditorTraits[_traitCursor];
+                bool changed;
+                if (HasPartyTrait(party, trait))
+                {
+                    changed = RemovePartyTrait(party, trait);
+                }
+                else
+                {
+                    RemoveConflictingEditorTrait(party, trait);
+                    changed = TryAddPartyTrait(party, trait);
+                    if (!changed && party.Traits != null && party.Traits.Count >= MaxPartyTraits)
+                    {
+                        SetStatus(
+                            string.Format(
+                                LM.Get("ukiol_party_editor_trait_limit"),
+                                MaxPartyTraits
+                            )
+                        );
+                        RefreshTraitFields(party);
+                        return;
+                    }
+                }
+
+                if (changed)
+                {
+                    SavePartyTraits(_targetKingdom, party);
+                    SetStatus(
+                        string.Format(
+                            LM.Get("ukiol_party_editor_trait_changed"),
+                            GetPartyTraitLocalizedName(trait)
+                        )
+                    );
+                    RefreshPartyProfile();
+                }
+                else
+                {
+                    SetStatus(LM.Get("ukiol_party_editor_failed"));
+                }
+                RefreshFields(true);
+            }
+
+            private static void RemoveConflictingEditorTrait(
+                PoliticalParty party,
+                string trait
+            )
+            {
+                if (party == null)
+                {
+                    return;
+                }
+
+                if (trait == PartyTraitMass)
+                {
+                    RemovePartyTrait(party, PartyTraitElite);
+                }
+                else if (trait == PartyTraitElite)
+                {
+                    RemovePartyTrait(party, PartyTraitMass);
+                }
+                else if (trait == PartyTraitDisciplined)
+                {
+                    RemovePartyTrait(party, PartyTraitFactional);
+                }
+                else if (trait == PartyTraitFactional)
+                {
+                    RemovePartyTrait(party, PartyTraitDisciplined);
+                }
+                else if (trait == PartyTraitReformist)
+                {
+                    RemovePartyTrait(party, PartyTraitRevolutionary);
+                }
+                else if (trait == PartyTraitRevolutionary)
+                {
+                    RemovePartyTrait(party, PartyTraitReformist);
+                }
+            }
+
+            private void AssignLeader()
+            {
+                if (_createMode)
+                {
+                    SetStatus(LM.Get("ukiol_party_editor_create_first"));
+                    return;
+                }
+
+                PoliticalParty party = GetTargetParty();
+                if (party == null)
+                {
+                    return;
+                }
+
+                bool changed = ScenarioBridge.AssignBestKingdomPartyLeader(
+                    _targetKingdom,
+                    party.Id
+                );
+                SetStatus(
+                    changed
+                        ? LM.Get("ukiol_party_editor_leader_changed")
+                        : LM.Get("ukiol_party_editor_leader_failed")
+                );
+                RefreshPartyProfile();
+                RefreshFields(true);
+            }
+
+            private void SetStatus(string value)
+            {
+                if (_statusLabel != null)
+                {
+                    _statusLabel.text = value ?? "";
+                }
             }
 
             private void RefreshPartyProfile()
@@ -1230,7 +2218,7 @@ namespace Lous12.PoliticalWorld
                 catch (Exception exception)
                 {
                     LogWarning(
-                        "Could not refresh party profile after rename: " +
+                        "Could not refresh party profile after edit: " +
                         exception.Message
                     );
                 }
@@ -1274,7 +2262,7 @@ namespace Lous12.PoliticalWorld
                 return text;
             }
 
-            private void AddActionButton(
+            private Button AddActionButton(
                 string objectName,
                 string label,
                 UnityEngine.Events.UnityAction action,
@@ -1333,6 +2321,7 @@ namespace Lous12.PoliticalWorld
                 text.resizeTextForBestFit = true;
                 text.resizeTextMinSize = 8;
                 text.resizeTextMaxSize = 11;
+                return button;
             }
         }
 
@@ -1377,6 +2366,14 @@ namespace Lous12.PoliticalWorld
             private static Font _font;
             private static string _statusText = "";
 
+            public static void ResetWorldSelection()
+            {
+                _targetKingdom = null;
+                _targetCity = null;
+                _targetTile = null;
+                _statusText = "";
+            }
+
             protected override void Init()
             {
                 if (_font == null)
@@ -1417,7 +2414,7 @@ namespace Lous12.PoliticalWorld
                 _targetTile = tile;
                 _statusText = "";
                 Instance.RefreshContent();
-                Instance.ScrollWindowComponent.clickShow();
+                ScrollWindow.showWindow(WindowId);
                 Instance.ResetScrollToTop();
             }
 
@@ -1441,7 +2438,7 @@ namespace Lous12.PoliticalWorld
                 _targetTile = tile;
                 _statusText = "";
                 Instance.RefreshContent();
-                Instance.ScrollWindowComponent.clickShow();
+                ScrollWindow.showWindow(WindowId);
                 Instance.ResetScrollToTop();
             }
 

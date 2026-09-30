@@ -2,7 +2,7 @@
 
 **ID основного мода:** `Lous12.PoliticalWorld`  
 **Public API:** `Lous12.PoliticalWorld.PoliticalWorldAPI`  
-**Текущая протестированная версия API:** `1.9.0`  
+**Текущая протестированная версия API:** `1.19.0`  
 **Целевая версия WorldBox на ПК:** `0.51.2 / build 719`
 
 Political World — это одновременно сам политический мод и платформа, на которой можно делать аддоны.
@@ -16,7 +16,7 @@ Political World — это одновременно сам политическ�
 - [Первый аддон за 10 минут](GETTING_STARTED.md)
 - [Куда мы развиваем API](FRAMEWORK_VISION.md)
 - [Что можно создавать](what-you-can-build.md)
-- [Справочник API 1.9](API_REFERENCE_1_9.md)
+- [Справочник API 1.19](API_REFERENCE_1_19.md)
 - [Идеологии](ideologies.md)
 - [Формы правления](governments.md)
 - [Партии](parties.md)
@@ -47,3 +47,8 @@ Political World — это одновременно сам политическ�
 Если задачу можно решить через Event Bus, Action, Condition, Rare Event или сохранённое состояние аддона, это почти всегда лучше собственного `Update()`, который каждый кадр перебирает государства, города или жителей.
 
 Так и сам Political World устроен внутри: больше событий и редких проверок, меньше постоянной тяжёлой симуляции.
+
+
+## Discord
+
+Political World Community: https://discord.gg/kYH5GadndE

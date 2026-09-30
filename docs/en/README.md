@@ -2,7 +2,7 @@
 
 **Core mod ID:** `Lous12.PoliticalWorld`  
 **Public API:** `Lous12.PoliticalWorld.PoliticalWorldAPI`  
-**Current tested API:** `1.9.0`  
+**Current tested API:** `1.19.0`  
 **Target PC WorldBox build:** `0.51.2 / build 719`
 
 Political World is both:
@@ -17,7 +17,7 @@ Political APIs remain fully supported, but creators are **not expected to limit 
 - [Getting started: first addon in 10 minutes](GETTING_STARTED.md)
 - [Framework vision](FRAMEWORK_VISION.md)
 - [What can you build?](what-you-can-build.md)
-- [API 1.9 quick reference](API_REFERENCE_1_9.md)
+- [API 1.19 quick reference](API_REFERENCE_1_19.md)
 - [Ideologies](ideologies.md)
 - [Governments](governments.md)
 - [Parties](parties.md)
@@ -47,3 +47,8 @@ If a first-party addon needs an internal shortcut, the preferred response is to 
 Prefer registration and events over continuous polling.
 
 Political World is intentionally event-driven and aggregate-first. Addons should avoid scanning the whole world every frame when an event, Action, Condition, Rare Event or cached addon state can express the same behavior.
+
+
+## Discord
+
+Political World Community: https://discord.gg/kYH5GadndE

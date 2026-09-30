@@ -64,6 +64,9 @@ namespace Lous12.PoliticalWorld
         private const string ElectiveMonarchyCurrentId = "ukiol_current_elective_monarchy";
         private const string AristocraticElectiveMonarchyCurrentId = "ukiol_current_aristocratic_elective_monarchy";
         private const string PopularElectiveMonarchyCurrentId = "ukiol_current_popular_elective_monarchy";
+        // 1.10: fantasy/world-simulation branches. These are still currents,
+        // so old root-ideology saves remain 100% compatible.
+        private const string KhanismCurrentId = "ukiol_current_khanism";
 
         // Conservatism
         private const string ReactionaryConservatismCurrentId = "ukiol_current_reactionary_conservatism";
@@ -73,6 +76,8 @@ namespace Lous12.PoliticalWorld
         private const string ProgressiveConservatismCurrentId = "ukiol_current_progressive_conservatism";
         private const string AuthoritarianConservatismCurrentId = "ukiol_current_authoritarian_conservatism";
         private const string OrderConservatismCurrentId = "ukiol_current_order_conservatism";
+        private const string AgrarianismCurrentId = "ukiol_current_agrarianism";
+        private const string TheocraticTraditionalismCurrentId = "ukiol_current_theocratic_traditionalism";
 
         // Liberalism
         private const string EconomicLiberalismCurrentId = "ukiol_current_economic_liberalism";
@@ -93,6 +98,8 @@ namespace Lous12.PoliticalWorld
         private const string ConstitutionalPresidentialismCurrentId = "ukiol_current_constitutional_presidentialism";
         private const string CouncilDemocracyCurrentId = "ukiol_current_council_democracy";
         private const string DelegativeCouncilDemocracyCurrentId = "ukiol_current_delegative_council_democracy";
+        private const string TechnocraticDemocracyCurrentId = "ukiol_current_technocratic_democracy";
+        private const string SylvanConcordCurrentId = "ukiol_current_sylvan_concord";
 
         // Socialism
         private const string ModerateSocialDemocracyCurrentId = "ukiol_current_moderate_social_democracy";
@@ -126,6 +133,9 @@ namespace Lous12.PoliticalWorld
         private const string TotalitarianFascismCurrentId = "ukiol_current_totalitarian_fascism";
         private const string IntegralFascismCurrentId = "ukiol_current_integral_fascism";
         private const string NationalSyndicalismFascistCurrentId = "ukiol_current_national_syndicalism_fascist";
+        private const string StratocracyCurrentId = "ukiol_current_stratocracy";
+        private const string IronOrderCurrentId = "ukiol_current_iron_order";
+        private const string BurgundianSystemCurrentId = "ukiol_current_burgundian_system";
 
         // Anarchism
         private const string SocialAnarchismCurrentId = "ukiol_current_social_anarchism";
@@ -151,6 +161,7 @@ namespace Lous12.PoliticalWorld
         private const string DemocraticSyndicalismCurrentId = "ukiol_current_democratic_syndicalism";
         private const string ParliamentarySyndicalismCurrentId = "ukiol_current_parliamentary_syndicalism";
         private const string CooperativeCommonwealthCurrentId = "ukiol_current_cooperative_commonwealth";
+        private const string ForgeSyndicalismCurrentId = "ukiol_current_forge_syndicalism";
 
         private const string MonarchismPowerId = "ukiol_set_ideology_monarchism";
         private const string ConservatismPowerId = "ukiol_set_ideology_conservatism";

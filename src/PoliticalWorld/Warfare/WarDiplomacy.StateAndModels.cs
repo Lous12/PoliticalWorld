@@ -91,6 +91,8 @@ namespace Lous12.PoliticalWorld
             WarPairNextRuntimeStartTime = new Dictionary<string, float>();
         private static float _nextDiplomaticCrisisCleanupTime;
         private static readonly HashSet<string>
+            PatchedWarStartMethods = new HashSet<string>();
+        private static readonly HashSet<string>
             PatchedWarPeaceMethods = new HashSet<string>();
         private static readonly Dictionary<string, ActiveWarSimulation>
             ActiveWarSimulations = new Dictionary<string, ActiveWarSimulation>();

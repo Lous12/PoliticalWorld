@@ -13,9 +13,9 @@ namespace Lous12.PoliticalWorld
     /// </summary>
     public static partial class PoliticalWorldAPI
     {
-        public const string ApiVersion = "1.9.0";
+        public const string ApiVersion = "1.19.0";
         public const int ApiMajor = 1;
-        public const int ApiMinor = 9;
+        public const int ApiMinor = 19;
         public const string CoreModId = "Lous12.PoliticalWorld";
 
         public delegate bool KingdomCondition(Kingdom kingdom);
@@ -57,6 +57,16 @@ namespace Lous12.PoliticalWorld
             public string Version;
             public string Description;
             public string Author;
+            // API 1.13: optional compatibility metadata. Zero means
+            // "no explicit API requirement" for backward compatibility.
+            public int RequiredApiMajor;
+            public int RequiredApiMinor;
+            // Semantic requirements can point either to a Political World core
+            // capability (for example ui.inspector) or a capability advertised
+            // by another addon (for example magic.mana). Missing addon
+            // capabilities are warnings, not hard registration failures, so
+            // load order does not make an addon disappear.
+            public string[] RequiredCapabilities;
         }
 
         public sealed class AddonInfo
@@ -66,6 +76,9 @@ namespace Lous12.PoliticalWorld
             public string Version;
             public string Description;
             public string Author;
+            public int RequiredApiMajor;
+            public int RequiredApiMinor;
+            public string[] RequiredCapabilities;
         }
 
         public sealed class IdeologyDefinition
@@ -87,6 +100,12 @@ namespace Lous12.PoliticalWorld
             // 0 by default: addon ideologies do not randomly appear unless
             // the addon author explicitly opts in.
             public int RandomWeight;
+            // API 1.15 metadata. Family defaults to the resolved root; Rarity
+            // is typically common/uncommon/rare/secret. Radicalism is 0..100.
+            public string Family;
+            public string Rarity;
+            public int Radicalism;
+            public bool IsSecret;
             public string[] Tags;
         }
 
@@ -103,6 +122,10 @@ namespace Lous12.PoliticalWorld
             public int SortOrder;
             public string Source;
             public int Tier;
+            public string Family;
+            public string Rarity;
+            public int Radicalism;
+            public bool IsSecret;
             public string[] Tags;
         }
 
@@ -155,6 +178,9 @@ namespace Lous12.PoliticalWorld
         public sealed class KingdomState
         {
             public string KingdomName;
+            public string BaseCountryName;
+            public string PoliticalCountryName;
+            public string RaceId;
             public string IdeologyId;
             public string IdeologyName;
             public string CurrentId;
@@ -300,10 +326,18 @@ namespace Lous12.PoliticalWorld
             {
                 Id = CoreModId,
                 Name = "Political World",
-                Version = "1.9.0",
+                Version = "1.11.0",
                 Description = "Political World core API",
-                Author = "Lous12"
+                Author = "Lous12",
+                RequiredApiMajor = 1,
+                RequiredApiMinor = 16,
+                RequiredCapabilities = new string[0]
             };
+
+            // API 1.15: core presets are ordinary registry entries. Addons can
+            // use the same public surfaces for their own races and naming.
+            InternalSeedCorePoliticalProfiles();
+            InternalSeedCoreCountryNameTemplates();
         }
 
         private static readonly string[] PoliticalSystemIds = new string[]
@@ -363,7 +397,73 @@ namespace Lous12.PoliticalWorld
             "political-event.registry",
             "political-event.rare",
             "political-event.rare.execute",
-            "diagnostics"
+            "diagnostics",
+            "world.data.actor",
+            "world.data.city",
+            "world.data.kingdom",
+            "world.tags.actor",
+            "world.tags.city",
+            "world.tags.kingdom",
+            "world.conditions",
+            "world.effects",
+            "event.custom",
+            "event.payload",
+            "content.generic",
+            "content.generic-types",
+            "addon.capabilities",
+            "world.query",
+            "world.query.kingdom",
+            "world.query.city",
+            "world.query.actor",
+            "world.lifecycle",
+            "world.lifecycle.events",
+            "world.migrations",
+            "world.migrations.actor",
+            "world.migrations.city",
+            "world.migrations.kingdom",
+            "ui.inspector",
+            "ui.inspector.sections",
+            "ui.context-actions",
+            "ui.addon-cleanup",
+            "ui.host",
+            "ui.politics-pages",
+            "ui.kingdom-politics-pages",
+            "ui.settlement-politics-pages",
+            "settlement.politics.metrics",
+            "settlement.separatism.simulation",
+            "settlement.separatism.events",
+            "addon.requirements",
+            "ecosystem.registry",
+            "ecosystem.snapshot",
+            "ecosystem.compatibility",
+            "ecosystem.event-metrics",
+            "ecosystem.issues",
+            "ecosystem.cleanup",
+            "diagnostics.framework",
+            "framework.release",
+            "framework.stable-contract",
+            "framework.requirements-check",
+            "framework.support-report",
+            "framework.deprecation-notices",
+            "country-names.read",
+            "country-names.dynamic",
+            "country-names.register",
+            "country-names.monarchy-ranks",
+            "race.profiles",
+            "race.ideology-weights",
+            "ideology.metadata.v2",
+            "election.payload.v2",
+            "warfare.read",
+            "warfare.start",
+            "warfare.force",
+            "warfare.player-bypass",
+            "interop.providers",
+            "sdk.1.14",
+            "sdk.1.15",
+            "sdk.1.16",
+            "sdk.1.17",
+            "sdk.1.18",
+            "sdk.1.19"
         };
 
         public static bool IsReady()
@@ -427,6 +527,52 @@ namespace Lous12.PoliticalWorld
             if (string.IsNullOrEmpty(name))
             {
                 AddValidationIssue(result, "PW106", "Addon Name is required.", true);
+            }
+
+            if (definition.RequiredApiMajor < 0 || definition.RequiredApiMinor < 0)
+            {
+                AddValidationIssue(result, "PW107", "Required API version cannot be negative.", true);
+            }
+            else if (definition.RequiredApiMajor > 0)
+            {
+                if (definition.RequiredApiMajor != ApiMajor)
+                {
+                    AddValidationIssue(
+                        result,
+                        "PW108",
+                        "Addon requires PoliticalWorldAPI " + definition.RequiredApiMajor + "." + definition.RequiredApiMinor +
+                        ", but this build provides " + ApiVersion + ".",
+                        true
+                    );
+                }
+                else if (definition.RequiredApiMinor > ApiMinor)
+                {
+                    AddValidationIssue(
+                        result,
+                        "PW109",
+                        "Addon requires PoliticalWorldAPI " + definition.RequiredApiMajor + "." + definition.RequiredApiMinor +
+                        "+, but this build provides " + ApiVersion + ".",
+                        true
+                    );
+                }
+            }
+
+            if (definition.RequiredCapabilities != null)
+            {
+                for (int i = 0; i < definition.RequiredCapabilities.Length; i++)
+                {
+                    string capability = definition.RequiredCapabilities[i] == null ? "" : definition.RequiredCapabilities[i].Trim();
+                    if (string.IsNullOrEmpty(capability)) continue;
+                    if (!InternalIsFrameworkCapabilityAvailable(capability))
+                    {
+                        AddValidationIssue(
+                            result,
+                            "PW110",
+                            "Required capability '" + capability + "' is not available yet. The addon may become fully compatible when its provider loads.",
+                            false
+                        );
+                    }
+                }
             }
             return FinishValidation(result);
         }
@@ -527,7 +673,10 @@ namespace Lous12.PoliticalWorld
                 Name = definition.Name.Trim(),
                 Version = definition.Version == null ? "" : definition.Version.Trim(),
                 Description = definition.Description == null ? "" : definition.Description.Trim(),
-                Author = definition.Author == null ? "" : definition.Author.Trim()
+                Author = definition.Author == null ? "" : definition.Author.Trim(),
+                RequiredApiMajor = definition.RequiredApiMajor,
+                RequiredApiMinor = definition.RequiredApiMinor,
+                RequiredCapabilities = CloneStringArray(definition.RequiredCapabilities)
             };
             InternalEnsureDiagnostics(id);
             InternalRecordDiagnostic(
@@ -536,6 +685,7 @@ namespace Lous12.PoliticalWorld
                 "PWDIAG001",
                 "Addon registered: " + definition.Name.Trim()
             );
+            InternalRecordAddonRequirements(id);
             return true;
         }
 
@@ -563,7 +713,10 @@ namespace Lous12.PoliticalWorld
                 Name = info.Name,
                 Version = info.Version,
                 Description = info.Description,
-                Author = info.Author
+                Author = info.Author,
+                RequiredApiMajor = info.RequiredApiMajor,
+                RequiredApiMinor = info.RequiredApiMinor,
+                RequiredCapabilities = CloneStringArray(info.RequiredCapabilities)
             };
         }
 
@@ -644,7 +797,10 @@ namespace Lous12.PoliticalWorld
                     Name = info.Name,
                     Version = info.Version,
                     Description = info.Description,
-                    Author = info.Author
+                    Author = info.Author,
+                    RequiredApiMajor = info.RequiredApiMajor,
+                    RequiredApiMinor = info.RequiredApiMinor,
+                    RequiredCapabilities = CloneStringArray(info.RequiredCapabilities)
                 });
             }
             result.Sort(delegate(AddonInfo a, AddonInfo b)
@@ -743,6 +899,10 @@ namespace Lous12.PoliticalWorld
                     LowSupportStability = definition.LowSupportStability,
                     DiffusionMultiplier = definition.DiffusionMultiplier,
                     RandomWeight = definition.RandomWeight,
+                    Family = definition.Family,
+                    Rarity = definition.Rarity,
+                    Radicalism = definition.Radicalism,
+                    IsSecret = definition.IsSecret,
                     Tags = definition.Tags
                 }
             );
@@ -904,6 +1064,9 @@ namespace Lous12.PoliticalWorld
             return new KingdomState()
             {
                 KingdomName = state.KingdomName,
+                BaseCountryName = state.BaseCountryName,
+                PoliticalCountryName = state.PoliticalCountryName,
+                RaceId = state.RaceId,
                 IdeologyId = state.IdeologyId,
                 IdeologyName = state.IdeologyName,
                 CurrentId = state.CurrentId,
@@ -1043,6 +1206,15 @@ namespace Lous12.PoliticalWorld
         public static bool SetKingdomPartyIdeology(Kingdom kingdom, string partyId, string ideologyId)
         {
             return Main.ScenarioBridge.SetKingdomPartyIdeology(kingdom, partyId, ideologyId);
+        }
+
+        /// <summary>
+        /// Changes the persistent visual color variant used for the party.
+        /// Values wrap through Political World's built-in party palette.
+        /// </summary>
+        public static bool SetKingdomPartyColorSeed(Kingdom kingdom, string partyId, int colorSeed)
+        {
+            return Main.ScenarioBridge.SetKingdomPartyColorSeed(kingdom, partyId, colorSeed);
         }
 
         /// <summary>
@@ -1690,6 +1862,10 @@ namespace Lous12.PoliticalWorld
                 SortOrder = item.SortOrder,
                 Source = item.Source,
                 Tier = item.Tier,
+                Family = item.Family,
+                Rarity = item.Rarity,
+                Radicalism = item.Radicalism,
+                IsSecret = item.IsSecret,
                 Tags = item.Tags == null ? new string[0] : (string[])item.Tags.Clone()
             };
         }

@@ -88,6 +88,16 @@ namespace Lous12.PoliticalWorld
                 return;
             }
 
+            // Initialization is a simulation responsibility. Do it before
+            // political-memory migration/update so a new city's first memory
+            // snapshot reflects the same initialized citizen sample that the
+            // old support helpers used, without making UI reads mutate state.
+            EnsureCityIdeologySampleInitialized(
+                city,
+                kingdom,
+                stateIdeology
+            );
+
             EnsureAndUpdateCityPoliticalMemory(
                 city,
                 kingdom,
@@ -372,6 +382,71 @@ namespace Lous12.PoliticalWorld
         }
 
 
+        private static void EnsureCityIdeologySampleInitialized(
+            City city,
+            Kingdom kingdom,
+            string stateIdeology
+        )
+        {
+            if (city == null || kingdom == null)
+            {
+                return;
+            }
+
+            List<Actor> units = GetCityUnitsSafe(city);
+            if (units.Count == 0)
+            {
+                return;
+            }
+
+            int initialized = 0;
+            int sample = Math.Min(
+                IdeologySupportSamplePerCity,
+                units.Count
+            );
+            int step = Math.Max(
+                1,
+                units.Count / Math.Max(1, sample)
+            );
+
+            for (
+                int i = 0;
+                i < units.Count && initialized < sample;
+                i += step
+            )
+            {
+                Actor actor = units[i];
+                if (
+                    actor == null ||
+                    actor.data == null ||
+                    !actor.isAlive()
+                )
+                {
+                    continue;
+                }
+
+                string current = GetCitizenIdeology(actor);
+                if (!IsValidIdeology(current))
+                {
+                    string initial = PickInitialCitizenIdeology(
+                        city,
+                        kingdom,
+                        stateIdeology
+                    );
+                    if (IsValidIdeology(initial))
+                    {
+                        SetCitizenIdeology(actor, initial);
+                        SetCitizenIdeologyConviction(
+                            actor,
+                            UnityEngine.Random.Range(40, 71)
+                        );
+                    }
+                }
+
+                initialized++;
+            }
+        }
+
         private static void ConsiderIdeologyPressure(
             ref string candidate,
             ref float bestPressure,
@@ -466,7 +541,7 @@ namespace Lous12.PoliticalWorld
 
             if (!IsValidIdeology(stateIdeology))
             {
-                return ScenarioBridge.PickRandomSeedIdeology();
+                return ScenarioBridge.PickRandomSeedIdeology(kingdom);
             }
 
             float roll = UnityEngine.Random.value;
@@ -488,7 +563,7 @@ namespace Lous12.PoliticalWorld
                 }
             }
 
-            return ScenarioBridge.PickRandomSeedIdeology();
+            return ScenarioBridge.PickRandomSeedIdeology(kingdom);
         }
 
         private static string PickSimilarIdeology(
@@ -717,6 +792,7 @@ namespace Lous12.PoliticalWorld
             RegisterIdeologyCurrent(ElectiveMonarchyCurrentId, MonarchismIdeologyId, 2, -1, 2, 1f, "monarchy", "elective");
             RegisterIdeologyCurrent(AristocraticElectiveMonarchyCurrentId, ElectiveMonarchyCurrentId, 2, -1, 2, 0.95f, "monarchy", "elective", "elite");
             RegisterIdeologyCurrent(PopularElectiveMonarchyCurrentId, ElectiveMonarchyCurrentId, 3, -1, 3, 1f, "monarchy", "elective", "participatory");
+            RegisterIdeologyCurrent(KhanismCurrentId, MonarchismIdeologyId, 1, 50, -3, 1.08f, "monarchy", "khanist", "nomadic", "militarist", "centralized");
 
             // CONSERVATISM
             RegisterIdeologyCurrent(TraditionalismCurrentId, ConservatismIdeologyId, 3, 50, 0, 1f, "tradition", "order");
@@ -728,6 +804,8 @@ namespace Lous12.PoliticalWorld
             RegisterIdeologyCurrent(ProgressiveConservatismCurrentId, LiberalConservatismCurrentId, 4, -1, 4, 0.95f, "conservative", "reformist", "social");
             RegisterIdeologyCurrent(AuthoritarianConservatismCurrentId, ConservatismIdeologyId, 1, 60, -5, 1.08f, "conservative", "authoritarian", "order");
             RegisterIdeologyCurrent(OrderConservatismCurrentId, AuthoritarianConservatismCurrentId, 2, 55, -4, 1.02f, "conservative", "authoritarian", "stability");
+            RegisterIdeologyCurrent(AgrarianismCurrentId, TraditionalismCurrentId, 3, -1, 3, 0.96f, "conservative", "agrarian", "communal", "traditional");
+            RegisterIdeologyCurrent(TheocraticTraditionalismCurrentId, TraditionalismCurrentId, 1, 55, -4, 1.02f, "conservative", "theocratic", "clerical", "authoritarian", "traditional");
 
             // LIBERALISM
             RegisterIdeologyCurrent(ClassicalLiberalismCurrentId, LiberalismIdeologyId, 2, -1, 2, 1f, "liberty", "market");
@@ -752,6 +830,8 @@ namespace Lous12.PoliticalWorld
             RegisterIdeologyCurrent(ConstitutionalPresidentialismCurrentId, PresidentialDemocracyCurrentId, 4, -1, 4, 0.98f, "democracy", "presidential", "constitutional");
             RegisterIdeologyCurrent(CouncilDemocracyCurrentId, DemocracyIdeologyId, 2, -1, 2, 1f, "democracy", "councils", "decentralized");
             RegisterIdeologyCurrent(DelegativeCouncilDemocracyCurrentId, CouncilDemocracyCurrentId, 2, -1, 2, 1f, "democracy", "councils", "delegative");
+            RegisterIdeologyCurrent(TechnocraticDemocracyCurrentId, DemocracyIdeologyId, 4, -1, 4, 0.96f, "democracy", "technocratic", "meritocratic", "pluralism");
+            RegisterIdeologyCurrent(SylvanConcordCurrentId, DemocracyIdeologyId, 5, -1, 5, 0.94f, "democracy", "consensus", "communal", "green", "sylvan");
 
             // SOCIALISM
             RegisterIdeologyCurrent(SocialDemocracyCurrentId, SocialismIdeologyId, 5, -1, 5, 0.95f, "social", "democracy", "reformist");
@@ -792,6 +872,9 @@ namespace Lous12.PoliticalWorld
             RegisterIdeologyCurrent(TotalitarianFascismCurrentId, RadicalFascismCurrentId, -6, -1, -6, 1.30f, "fascist", "totalitarian", "militarist");
             RegisterIdeologyCurrent(IntegralFascismCurrentId, RadicalFascismCurrentId, -3, -1, -5, 1.18f, "fascist", "integral", "authoritarian");
             RegisterIdeologyCurrent(NationalSyndicalismFascistCurrentId, FascismIdeologyId, -1, 55, -5, 1.15f, "fascist", "national-syndicalist", "workers");
+            RegisterIdeologyCurrent(StratocracyCurrentId, RadicalFascismCurrentId, -2, 60, -5, 1.12f, "fascist", "stratocratic", "military-state", "militarist", "authoritarian");
+            RegisterIdeologyCurrent(IronOrderCurrentId, RadicalFascismCurrentId, -5, 65, -7, 1.20f, "fascist", "totalitarian", "radical", "order", "militarist");
+            RegisterIdeologyCurrent(BurgundianSystemCurrentId, TotalitarianFascismCurrentId, -8, 75, -10, 1.28f, "fascist", "totalitarian", "ultranationalist", "esoteric", "radical", "militarist", "secret");
 
             // ANARCHISM
             RegisterIdeologyCurrent(IndividualistAnarchismCurrentId, AnarchismIdeologyId, -3, -1, -3, 1f, "stateless", "individualist", "decentralized");
@@ -822,6 +905,7 @@ namespace Lous12.PoliticalWorld
             RegisterIdeologyCurrent(DemocraticSyndicalismCurrentId, SyndicalismIdeologyId, 3, -1, 3, 0.98f, "syndicalist", "democratic", "workers");
             RegisterIdeologyCurrent(ParliamentarySyndicalismCurrentId, DemocraticSyndicalismCurrentId, 4, -1, 4, 0.95f, "syndicalist", "parliamentary", "workers");
             RegisterIdeologyCurrent(CooperativeCommonwealthCurrentId, DemocraticSyndicalismCurrentId, 5, -1, 5, 0.92f, "syndicalist", "cooperative", "democratic");
+            RegisterIdeologyCurrent(ForgeSyndicalismCurrentId, GuildSyndicalismCurrentId, 3, -1, 3, 0.98f, "syndicalist", "guilds", "industrial", "workers", "forge");
 
             _ideologyRegistryInitialized = true;
         }
@@ -1171,6 +1255,15 @@ namespace Lous12.PoliticalWorld
             else if (tag == "conservative") { p.Centralization += 5; p.Pluralism -= 3; }
             else if (tag == "utopian") { p.Welfare += 10; p.Militarism -= 10; }
             else if (tag == "clerical") { p.Centralization += 5; p.Pluralism -= 8; }
+            else if (tag == "theocratic") { p.Centralization += 10; p.Pluralism -= 12; }
+            else if (tag == "technocratic") { p.Market += 5; p.Centralization += 5; p.Pluralism += 3; }
+            else if (tag == "meritocratic") { p.Pluralism += 4; }
+            else if (tag == "agrarian") { p.Market -= 10; p.Welfare += 5; p.Militarism -= 5; }
+            else if (tag == "ultranationalist") { p.Centralization += 10; p.Pluralism -= 12; p.Militarism += 18; }
+            else if (tag == "esoteric") { p.Pluralism -= 12; p.Centralization += 5; }
+            else if (tag == "nomadic") { p.Centralization -= 5; p.Militarism += 5; }
+            else if (tag == "industrial") { p.Market += 4; }
+            else if (tag == "stratocratic" || tag == "military-state") { p.Centralization += 12; p.Pluralism -= 15; p.Militarism += 20; }
         }
 
         private static int GetIdeologyBehaviorStabilityModifier(Kingdom kingdom)
@@ -2336,6 +2429,55 @@ namespace Lous12.PoliticalWorld
             );
         }
 
+        private static float GetRacePoliticalIdeologyWeight(
+            Kingdom kingdom,
+            string ideologyOrCurrentId
+        )
+        {
+            if (kingdom == null || string.IsNullOrEmpty(ideologyOrCurrentId))
+            {
+                return 1f;
+            }
+
+            string raceId = GetKingdomRaceIdForPolitics(kingdom);
+            return PoliticalWorldAPI.Races.GetIdeologyWeight(
+                raceId,
+                ideologyOrCurrentId
+            );
+        }
+
+        // Stable per kingdom, so special branches can actually build the
+        // normal 3-year evolution pressure instead of rerolling every tick.
+        // Race profiles only nudge the threshold; they never hard-lock a race.
+        private static bool HasStableIdeologyPreference(
+            Kingdom kingdom,
+            string ideologyOrCurrentId,
+            int baseChancePercent
+        )
+        {
+            if (kingdom == null || string.IsNullOrEmpty(ideologyOrCurrentId))
+            {
+                return false;
+            }
+
+            float weight = GetRacePoliticalIdeologyWeight(
+                kingdom,
+                ideologyOrCurrentId
+            );
+            int threshold = ClampInt(
+                (int)Math.Round(baseChancePercent * 100f * weight),
+                0,
+                10000
+            );
+            int roll = StablePartyHash(
+                GetStableObjectIdentity(kingdom) +
+                "|current_preference|" +
+                ideologyOrCurrentId
+            ) & int.MaxValue;
+            roll %= 10000;
+            return roll < threshold;
+        }
+
         private static string DetermineIdeologyCurrent(
             Kingdom kingdom,
             string stateIdeology
@@ -2367,6 +2509,15 @@ namespace Lous12.PoliticalWorld
                     int democracy = GetKingdomIdeologySupport(kingdom, DemocracyIdeologyId);
                     int conservative = GetKingdomIdeologySupport(kingdom, ConservatismIdeologyId);
                     int reformInfluence = liberal + democracy;
+
+                    if (
+                        stateSupport >= 45 &&
+                        (conservative >= 25 || course == MilitaristTraitId || rulerTrait == MilitaristTraitId) &&
+                        HasStableIdeologyPreference(kingdom, KhanismCurrentId, 8)
+                    )
+                    {
+                        return KhanismCurrentId;
+                    }
 
                     if (democracy >= 35 && stateSupport < 50)
                     {
@@ -2415,6 +2566,25 @@ namespace Lous12.PoliticalWorld
                     int socialism = GetKingdomIdeologySupport(kingdom, SocialismIdeologyId);
                     int monarchy = GetKingdomIdeologySupport(kingdom, MonarchismIdeologyId);
                     int fascism = GetKingdomIdeologySupport(kingdom, FascismIdeologyId);
+
+                    if (
+                        monarchy >= 30 &&
+                        stateSupport >= 48 &&
+                        (course != ReformerTraitId && rulerTrait != ReformerTraitId) &&
+                        HasStableIdeologyPreference(kingdom, TheocraticTraditionalismCurrentId, 7)
+                    )
+                    {
+                        return TheocraticTraditionalismCurrentId;
+                    }
+
+                    if (
+                        stability >= 50 &&
+                        fascism < 25 &&
+                        HasStableIdeologyPreference(kingdom, AgrarianismCurrentId, 10)
+                    )
+                    {
+                        return AgrarianismCurrentId;
+                    }
 
                     if (
                         course == ReformerTraitId ||
@@ -2490,6 +2660,24 @@ namespace Lous12.PoliticalWorld
                     int anarchism = GetKingdomIdeologySupport(kingdom, AnarchismIdeologyId);
                     int conservatism = GetKingdomIdeologySupport(kingdom, ConservatismIdeologyId);
                     int councilInfluence = socialism + syndicalism + anarchism;
+
+                    if (
+                        stability >= 55 &&
+                        stateSupport >= 48 &&
+                        HasStableIdeologyPreference(kingdom, SylvanConcordCurrentId, 10)
+                    )
+                    {
+                        return SylvanConcordCurrentId;
+                    }
+
+                    if (
+                        stability >= 50 &&
+                        stateSupport >= 45 &&
+                        HasStableIdeologyPreference(kingdom, TechnocraticDemocracyCurrentId, 10)
+                    )
+                    {
+                        return TechnocraticDemocracyCurrentId;
+                    }
 
                     if (councilInfluence >= 55)
                     {
@@ -2624,6 +2812,45 @@ namespace Lous12.PoliticalWorld
                     int conservatism = GetKingdomIdeologySupport(kingdom, ConservatismIdeologyId);
                     int monarchy = GetKingdomIdeologySupport(kingdom, MonarchismIdeologyId);
 
+                    string existingCurrent = GetStateIdeologyCurrent(kingdom);
+
+                    // Secret branch: this should be an event when it happens,
+                    // not a normal ideology roll. If this shows up in every
+                    // peaceful test world, the balance has gone to shit again.
+                    if (
+                        stateSupport >= 70 &&
+                        stability < 25 &&
+                        crisis >= 75 &&
+                        (
+                            existingCurrent == TotalitarianFascismCurrentId ||
+                            existingCurrent == NationalSocialismCurrentId ||
+                            existingCurrent == IronOrderCurrentId
+                        ) &&
+                        HasStableIdeologyPreference(kingdom, BurgundianSystemCurrentId, 2)
+                    )
+                    {
+                        return BurgundianSystemCurrentId;
+                    }
+
+                    if (
+                        stateSupport >= 62 &&
+                        stability < 42 &&
+                        crisis >= 58 &&
+                        HasStableIdeologyPreference(kingdom, IronOrderCurrentId, 7)
+                    )
+                    {
+                        return IronOrderCurrentId;
+                    }
+
+                    if (
+                        (course == MilitaristTraitId || rulerTrait == MilitaristTraitId) &&
+                        stateSupport >= 52 &&
+                        HasStableIdeologyPreference(kingdom, StratocracyCurrentId, 14)
+                    )
+                    {
+                        return StratocracyCurrentId;
+                    }
+
                     if (syndicalism >= 30)
                     {
                         return socialism >= 20
@@ -2709,6 +2936,15 @@ namespace Lous12.PoliticalWorld
                     int socialism = GetKingdomIdeologySupport(kingdom, SocialismIdeologyId);
                     int democracy = GetKingdomIdeologySupport(kingdom, DemocracyIdeologyId);
                     int liberal = GetKingdomIdeologySupport(kingdom, LiberalismIdeologyId);
+
+                    if (
+                        stability >= 45 &&
+                        stateSupport >= 45 &&
+                        HasStableIdeologyPreference(kingdom, ForgeSyndicalismCurrentId, 8)
+                    )
+                    {
+                        return ForgeSyndicalismCurrentId;
+                    }
 
                     if (stability < 35 || crisis >= 60)
                     {
@@ -2847,6 +3083,7 @@ namespace Lous12.PoliticalWorld
                         previous ?? "",
                         current
                     );
+                    RefreshPoliticalCountryDisplayName(kingdom);
                 }
             }
             catch

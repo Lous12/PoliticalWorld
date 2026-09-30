@@ -42,6 +42,10 @@ namespace Lous12.PoliticalWorld
         private const string ReduceRadicalizationPowerId = "ukiol_reduce_radicalization";
         private const string PoliticalOverviewPowerId = "ukiol_open_political_overview";
         private const string PoliticalOverviewWindowId = "ukiol_political_overview_window";
+        private const string AddonInspectorPowerId = "pw_api_open_addon_inspector";
+        private const string AddonInspectorWindowId = "pw_api_addon_inspector_window";
+        private const string PoliticalChroniclePowerId = "ukiol_open_political_chronicle";
+        private const string PoliticalChronicleWindowId = "ukiol_political_chronicle_window";
 
 
         // v1.5.0-dev1: persistent forms of government. These describe the
@@ -56,7 +60,7 @@ namespace Lous12.PoliticalWorld
         private const string GovernmentCouncilRepublicId = "ukiol_government_council_republic";
         private const string GovernmentOligarchyId = "ukiol_government_oligarchy";
 
-        private const string PartyRenameWindowId = "ukiol_party_rename_window";
+        private const string PartyEditorWindowId = "ukiol_party_editor_window";
 
         private const string StateCourseDataKey = "ukiol_state_course";
         private const string NationalStabilityDataKey = "ukiol_national_stability";
@@ -137,11 +141,12 @@ namespace Lous12.PoliticalWorld
         private const int PartyCongressIntervalYears = 5;
         private const int PartyLeadershipSchemaVersion = 1;
 
-        // v1.5.0-dev6.1: government leadership and succession. These are
-        // Political World offices layered on top of WorldBox's technical
-        // kingdom.king. We deliberately do not replace the vanilla king
-        // object yet; doing so without a stable game API could break city,
-        // clan and diplomacy internals.
+        // Government leadership and succession. These are Political World
+        // offices layered on top of WorldBox's technical kingdom.king. The
+        // vanilla ruler is synchronized only for political events that really
+        // replace the country's visible ruler (for example republican election
+        // turnover or an explicit regime-change crisis). Constitutional
+        // monarchy elections never replace the monarch.
         private const string GovernmentLeadershipSchemaDataKey = "ukiol_government_leadership_schema";
         private const string HeadOfStateIdentityDataKey = "ukiol_head_of_state_id";
         private const string HeadOfStateNameDataKey = "ukiol_head_of_state_name";
@@ -228,6 +233,11 @@ namespace Lous12.PoliticalWorld
         private const string PartyV2IdPrefix = "ukiol_party2_id_";
         private const string PartyV2IdeologyPrefix = "ukiol_party2_ideology_";
         private const string PartyV2NameVariantPrefix = "ukiol_party2_name_variant_";
+        // v1.9.0-dev1: generated party names can optionally include the
+        // kingdom name. The style is persisted separately from custom names
+        // so generated names still follow the currently selected language.
+        private const string PartyV2NameStylePrefix = "ukiol_party2_name_style_";
+        private const int CountryBasedPartyNameChance = 35;
         private const string PartyV2LeaderIdentityPrefix = "ukiol_party2_leader_id_";
         private const string PartyV2LeaderNamePrefix = "ukiol_party2_leader_name_";
         private const string PartyV2FounderIdentityPrefix = "ukiol_party2_founder_id_";
@@ -354,6 +364,20 @@ namespace Lous12.PoliticalWorld
         private const int PartySplitStrongSupportThreshold = 64;
         private const int PartySplitMinAgeYears = 10;
         private const int PartySplitCooldownYears = 14;
+
+        // 1.11-dev3: parties can now develop internal wings even when no
+        // external ideological movement exists. Pressure is deliberately
+        // stored per slot so old saves need no schema migration.
+        private const string PartyFactionPressurePrefix = "ukiol_party_faction_pressure_";
+        private const string PartyFactionLastYearPrefix = "ukiol_party_faction_last_year_";
+        private const string PartyFactionLastSplitYearPrefix = "ukiol_party_faction_last_split_year_";
+        private const int PartyFactionTickYears = 4;
+        private const int PartyFactionWingThreshold = 38;
+        private const int PartyFactionSplitThreshold = 72;
+        private const int PartyFactionSplitMinAgeYears = 12;
+        private const int PartyFactionSplitCooldownYears = 14;
+        private const int PartyFreshSplinterGraceYears = 6;
+
         private const int MaxPoliticalParties = 18;
         private const int MaxPoliticalPartiesPerIdeology = 3;
 
@@ -412,6 +436,11 @@ namespace Lous12.PoliticalWorld
         private const float RuntimeSummitUpdateInterval = 0.20f;
         private const float ArmyLimitModifierCacheSeconds = 1.0f;
 
+        // FIX5: detailed per-frame guard traces were useful while isolating the
+        // hard crash, but they are too noisy for normal play. Failure logs stay
+        // enabled; only successful begin/end diagnostics are muted.
+        private const bool VerbosePoliticalDiagnostics = false;
+
 
         private const int DefaultNationalStability = 50;
         private const int DefaultLocalStability = 50;
@@ -421,6 +450,28 @@ namespace Lous12.PoliticalWorld
         private const int RebellionThreshold = 15;
         private const int RebellionJoinThreshold = 18;
         private const float RebellionAttemptCooldown = 20f;
+
+        // v1.7.2-dev1 MAP LOAD FIX: a loaded Workshop/save world may expose its
+        // kingdom manager before all kingdom/city ownership has finished
+        // settling. Do not let autonomous PW systems fire into that transient
+        // topology. After the topology stays unchanged for a short window, keep
+        // a small additional grace period before arming simulation timers.
+        private const float WorldLoadTopologyStableSeconds = 3.0f;
+        private const float WorldLoadAutonomyGraceSeconds = 7.0f;
+        private const float WorldLoadTopologyProbeInterval = 0.25f;
+
+        // Rebellions should never synchronize simply because a save/map was
+        // loaded and the runtime cooldown dictionary is empty. A newly eligible
+        // city waits before its first roll, and successful rebellions are spaced
+        // globally so a large imported empire cannot explode in a load cascade.
+        private const float RebellionInitialAttemptDelayMin = 15f;
+        private const float RebellionInitialAttemptDelayMax = 45f;
+        private const float RebellionGlobalCooldown = 45f;
+
+        // INTERACTION FIX1: after a vanilla kingdom split, give WorldBox and
+        // addons a few rendered frames to rebuild structural references before
+        // any other Political World simulation stage scans the changed world.
+        private const float WorldTopologySettleSeconds = 4.0f;
 
         private const int ReformerGoldPerCity = 1;
         private const int ReformerBreadPerCity = 2;
@@ -477,6 +528,9 @@ namespace Lous12.PoliticalWorld
             NextRebellionAttemptTime =
                 new Dictionary<City, float>();
 
+        private static float WorldTopologySettleUntil;
+        private static string WorldTopologySettleReason = "";
+
         private static PowersTab _politicsTab;
         private static Harmony _harmony;
         private static bool _armyLimitPatchInstalled;
@@ -506,6 +560,39 @@ namespace Lous12.PoliticalWorld
             new HashSet<int>();
         private static bool _openingNativeKingdomPolitics;
         private static Button _kingdomPoliticsOverlayButton;
+
+        // 1.10.0-dev3: settlement Politics moved out of the vanilla stat
+        // wall into its own embedded page. Keep the settlement host state
+        // separate from kingdom Politics so opening one cannot disturb the
+        // other window or its scrollbar.
+        private static readonly HashSet<int> _cityPoliticsWindows =
+            new HashSet<int>();
+        private static readonly Dictionary<int, string>
+            _cityPoliticsAddonPageIds = new Dictionary<int, string>();
+        private static readonly Dictionary<int, string>
+            _kingdomPoliticsAddonPageIds = new Dictionary<int, string>();
+        private static readonly Dictionary<int, ScrollRect>
+            _cityPoliticsHostScrolls = new Dictionary<int, ScrollRect>();
+        private static readonly Dictionary<int, bool>
+            _cityPoliticsHostScrollEnabled = new Dictionary<int, bool>();
+        private static CityWindow[] _cachedCityWindows = new CityWindow[0];
+        private static float _nextCityWindowCacheRefreshTime;
+        private static Button _cityPoliticsOverlayButton;
+        private static int _cityPoliticsOverlayWindowId = -1;
+        private static bool _openingNativeCityPolitics;
+        // 1.10.0-dev4: settlement Politics now uses the same true native
+        // WindowMetaTab path as kingdom Politics. This avoids the old
+        // floating overlay tab and lets WorldBox handle tab layout/visibility.
+        private static WindowMetaTab _cityPoliticsTrueNativeTab;
+        private static WindowMetaTabButtonsContainer _cityPoliticsTrueNativeContainer;
+        private static int _cityPoliticsTrueNativeWindowId = -1;
+
+        private const string NativeCityPoliticsButtonName =
+            "ukiol_native_city_politics_tab";
+        private const string NativeCityPoliticsPanelName =
+            "ukiol_native_city_politics_panel";
+        private const string NativeCityPoliticsPageBarName =
+            "ukiol_native_city_politics_pages";
 
         // v1.4.0-dev4: accepted true native KingdomWindow tab integration.
         // WorldBox already has a real WindowMetaTab system. Keep references
@@ -548,7 +635,7 @@ namespace Lous12.PoliticalWorld
         private const int NativePoliticsPageLaws = 3;
         private const int NativePoliticsPageHistory = 4;
 
-        // v1.6.0-dev9 RC: this release candidate is audited against the
+        // v1.7.2-dev1: this test build inherits the 1.7.1 audit baseline against the
         // user's current Steam build. NeoModLoader exposes targetGameBuild in
         // mod.json but does not enforce it yet, so keep a lightweight runtime
         // diagnostic as well. It warns only; it never blocks loading.
@@ -563,6 +650,18 @@ namespace Lous12.PoliticalWorld
         private float _nextRuntimeDiplomacyUpdateTime;
         private float _nextRuntimeSummitUpdateTime;
         private int _politicalPipelineStage = -1;
+
+        // v1.7.2-dev1: per-world load/bootstrap guard. These are runtime-only;
+        // they intentionally do not touch save data or the public API contract.
+        private static bool _worldLoadBootstrapPending;
+        private static bool _worldLoadSimulationArmed;
+        private static float _worldLoadStableSinceUnscaled;
+        private static float _worldLoadAutonomyAllowedAtUnscaled;
+        private static float _nextWorldLoadTopologyProbeTime;
+        private static int _worldLoadLastKingdomCount = -1;
+        private static int _worldLoadLastCityCount = -1;
+        private static bool _internationalBlocBootstrapPending;
+        private static float _nextGlobalRebellionAllowedTime;
 
         private static KingdomWindow[] _cachedKingdomWindows =
             new KingdomWindow[0];

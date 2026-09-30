@@ -12,7 +12,7 @@ namespace Lous12.PoliticalWorld
         /// </summary>
         internal static class ScenarioBridge
         {
-            public const string ApiVersion = "1.8.0";
+            public const string ApiVersion = "1.17.0";
 
             public delegate bool KingdomActionCondition(Kingdom kingdom);
             public delegate void KingdomActionHandler(Kingdom kingdom);
@@ -30,6 +30,10 @@ namespace Lous12.PoliticalWorld
                 public int SortOrder;
                 public string Source;
                 public int Tier;
+                public string Family;
+                public string Rarity;
+                public int Radicalism;
+                public bool IsSecret;
                 public string[] Tags;
             }
 
@@ -55,6 +59,10 @@ namespace Lous12.PoliticalWorld
                 // 0 = never appears through Political World's generic random
                 // citizen seeding. Addons can opt in with a positive weight.
                 public int RandomWeight;
+                public string Family;
+                public string Rarity;
+                public int Radicalism;
+                public bool IsSecret;
                 public string[] Tags;
             }
 
@@ -67,6 +75,9 @@ namespace Lous12.PoliticalWorld
             public sealed class KingdomState
             {
                 public string KingdomName;
+                public string BaseCountryName;
+                public string PoliticalCountryName;
+                public string RaceId;
                 public string IdeologyId;
                 public string IdeologyName;
                 public string CurrentId;
@@ -150,6 +161,14 @@ namespace Lous12.PoliticalWorld
                 AddonIdeologyIcons = new Dictionary<string, string>(StringComparer.Ordinal);
             private static readonly Dictionary<string, int>
                 AddonIdeologySortOrders = new Dictionary<string, int>(StringComparer.Ordinal);
+            private static readonly Dictionary<string, string>
+                AddonIdeologyFamilies = new Dictionary<string, string>(StringComparer.Ordinal);
+            private static readonly Dictionary<string, string>
+                AddonIdeologyRarities = new Dictionary<string, string>(StringComparer.Ordinal);
+            private static readonly Dictionary<string, int>
+                AddonIdeologyRadicalism = new Dictionary<string, int>(StringComparer.Ordinal);
+            private static readonly Dictionary<string, bool>
+                AddonIdeologySecrets = new Dictionary<string, bool>(StringComparer.Ordinal);
 
             // Shared/global tags intentionally keep their legacy save key for compatibility.
             private const string AddonKingdomTagsDataKey = "ukiol_api_kingdom_tags";
@@ -165,6 +184,124 @@ namespace Lous12.PoliticalWorld
             internal static string GetKingdomDisplayName(Kingdom kingdom)
             {
                 return kingdom == null ? "" : (GetWorldObjectDisplayName(kingdom) ?? "");
+            }
+
+            public static string GetBaseCountryName(Kingdom kingdom)
+            {
+                return Main.GetBaseCountryName(kingdom);
+            }
+
+            public static string GetPoliticalCountryName(Kingdom kingdom)
+            {
+                return Main.GetPoliticalCountryDisplayName(kingdom);
+            }
+
+            public static string RefreshPoliticalCountryName(Kingdom kingdom)
+            {
+                return Main.RefreshPoliticalCountryDisplayName(kingdom);
+            }
+
+            public static string GetMonarchyRank(Kingdom kingdom)
+            {
+                return Main.GetMonarchyRankId(kingdom);
+            }
+
+            public static int GetSettlementGovernmentLoyalty(City city)
+            {
+                if (city == null) return 0;
+                Kingdom kingdom = GetKingdomFromObject(city);
+                int local = GetLocalStability(city);
+                int national = GetNationalStability(kingdom);
+                string stateIdeology = GetStateIdeology(kingdom);
+                int stateSupport = IsValidIdeology(stateIdeology)
+                    ? GetCityIdeologySupport(city, stateIdeology)
+                    : 0;
+                int division;
+                string dominantIdeology;
+                int dominantSupport;
+                GetCityIdeologyOverview(city, out dominantIdeology, out dominantSupport, out division);
+                int hostility = GetCityIdeologicalHostility(city);
+                return GetCityGovernmentLoyalty(
+                    city, local, national, stateIdeology, stateSupport, division, hostility
+                );
+            }
+
+            public static int GetSettlementSeparatistSentiment(City city)
+            {
+                if (city == null) return 0;
+                Kingdom kingdom = GetKingdomFromObject(city);
+                int local = GetLocalStability(city);
+                int national = GetNationalStability(kingdom);
+                string stateIdeology = GetStateIdeology(kingdom);
+                int stateSupport = IsValidIdeology(stateIdeology)
+                    ? GetCityIdeologySupport(city, stateIdeology)
+                    : 0;
+                int division;
+                string dominantIdeology;
+                int dominantSupport;
+                GetCityIdeologyOverview(city, out dominantIdeology, out dominantSupport, out division);
+                int hostility = GetCityIdeologicalHostility(city);
+                return GetCitySeparatistSentiment(
+                    city, local, national, stateIdeology, stateSupport, division, hostility
+                );
+            }
+
+            public static int GetSettlementSeparatistStage(City city)
+            {
+                return Main.GetCitySeparatistStage(city);
+            }
+
+            public static bool IsKingdomAtWar(Kingdom kingdom)
+            {
+                if (kingdom == null) return false;
+                List<Kingdom> kingdoms = GetKingdomsSafe();
+                for (int i = 0; i < kingdoms.Count; i++)
+                {
+                    Kingdom other = kingdoms[i];
+                    if (other != null && other != kingdom && IsKingdomPairAtWarSafe(kingdom, other))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            public static bool AreKingdomsAtWar(Kingdom first, Kingdom second)
+            {
+                return first != null && second != null && IsKingdomPairAtWarSafe(first, second);
+            }
+
+            public static List<Kingdom> GetWarEnemies(Kingdom kingdom)
+            {
+                List<Kingdom> result = new List<Kingdom>();
+                if (kingdom == null) return result;
+                List<Kingdom> kingdoms = GetKingdomsSafe();
+                for (int i = 0; i < kingdoms.Count; i++)
+                {
+                    Kingdom other = kingdoms[i];
+                    if (other != null && other != kingdom && IsKingdomPairAtWarSafe(kingdom, other))
+                    {
+                        result.Add(other);
+                    }
+                }
+                return result;
+            }
+
+            public static int GetWarExhaustion(Kingdom kingdom)
+            {
+                return kingdom == null
+                    ? 0
+                    : GetKingdomIntData(kingdom, WarExhaustionDataKey, 0);
+            }
+
+            public static bool TryDeclareWar(
+                Kingdom attacker,
+                Kingdom defender,
+                object warType,
+                bool bypassPolitics
+            )
+            {
+                return TryStartWarFromApi(attacker, defender, warType, bypassPolitics);
             }
 
             public static List<IdeologyInfo> GetIdeologies()
@@ -276,10 +413,82 @@ namespace Lous12.PoliticalWorld
                     SortOrder = GetAddonIdeologySortOrder(node.Id),
                     Source = GetIdeologySource(node.Id),
                     Tier = node.Tier,
+                    Family = ResolveIdeologyFamily(node),
+                    Rarity = ResolveIdeologyRarity(node),
+                    Radicalism = ResolveIdeologyRadicalism(node),
+                    IsSecret = ResolveIdeologySecret(node),
                     Tags = node.Tags == null
                         ? new string[0]
                         : (string[])node.Tags.Clone()
                 };
+            }
+
+            private static string ResolveIdeologyFamily(IdeologyNode node)
+            {
+                if (node == null) return "";
+                string custom;
+                if (AddonIdeologyFamilies.TryGetValue(node.Id ?? "", out custom) && !string.IsNullOrWhiteSpace(custom))
+                {
+                    return custom.Trim();
+                }
+                return node.RootIdeologyId ?? node.Id ?? "";
+            }
+
+            private static bool ResolveIdeologySecret(IdeologyNode node)
+            {
+                if (node == null) return false;
+                bool custom;
+                if (AddonIdeologySecrets.TryGetValue(node.Id ?? "", out custom) && custom) return true;
+                string[] tags = GetIdeologyTags(node.Id, true);
+                for (int i = 0; i < tags.Length; i++)
+                {
+                    if (string.Equals(tags[i], "secret", StringComparison.OrdinalIgnoreCase)) return true;
+                }
+                return false;
+            }
+
+            private static int ResolveIdeologyRadicalism(IdeologyNode node)
+            {
+                if (node == null) return 0;
+                int custom;
+                if (AddonIdeologyRadicalism.TryGetValue(node.Id ?? "", out custom) && custom > 0)
+                {
+                    return Math.Max(0, Math.Min(100, custom));
+                }
+
+                int score = 10;
+                string[] tags = GetIdeologyTags(node.Id, true);
+                for (int i = 0; i < tags.Length; i++)
+                {
+                    string tag = (tags[i] ?? "").ToLowerInvariant();
+                    if (tag == "radical") score += 20;
+                    else if (tag == "revolutionary") score += 15;
+                    else if (tag == "insurrectionary") score += 25;
+                    else if (tag == "totalitarian") score += 20;
+                    else if (tag == "ultranationalist") score += 25;
+                    else if (tag == "reactionary") score += 10;
+                    else if (tag == "authoritarian" || tag == "autocratic") score += 8;
+                    else if (tag == "militarist") score += 6;
+                    else if (tag == "moderate") score -= 10;
+                    else if (tag == "reformist") score -= 8;
+                    else if (tag == "pluralism") score -= 5;
+                }
+                return Math.Max(0, Math.Min(100, score));
+            }
+
+            private static string ResolveIdeologyRarity(IdeologyNode node)
+            {
+                if (node == null) return "common";
+                string custom;
+                if (AddonIdeologyRarities.TryGetValue(node.Id ?? "", out custom) && !string.IsNullOrWhiteSpace(custom))
+                {
+                    return custom.Trim().ToLowerInvariant();
+                }
+                if (ResolveIdeologySecret(node)) return "secret";
+                int radicalism = ResolveIdeologyRadicalism(node);
+                if (radicalism >= 60) return "rare";
+                if (node.Tier >= 2 || radicalism >= 35) return "uncommon";
+                return "common";
             }
 
             private static void SortIdeologyInfos(List<IdeologyInfo> result)
@@ -382,6 +591,10 @@ namespace Lous12.PoliticalWorld
                 AddonIdeologyDescriptions[id] = definition.Description == null ? "" : definition.Description.Trim();
                 AddonIdeologyIcons[id] = definition.Icon == null ? "" : definition.Icon.Trim();
                 AddonIdeologySortOrders[id] = definition.SortOrder;
+                AddonIdeologyFamilies[id] = definition.Family == null ? "" : definition.Family.Trim();
+                AddonIdeologyRarities[id] = definition.Rarity == null ? "" : definition.Rarity.Trim();
+                AddonIdeologyRadicalism[id] = Math.Max(0, Math.Min(100, definition.Radicalism));
+                AddonIdeologySecrets[id] = definition.IsSecret;
                 PoliticalWorldAPI.InternalSeedLocalizationFallback(
                     definition.Source,
                     nameKey,
@@ -758,20 +971,30 @@ namespace Lous12.PoliticalWorld
 
             public static string PickRandomSeedIdeology()
             {
+                return PickRandomSeedIdeology(null);
+            }
+
+            public static string PickRandomSeedIdeology(Kingdom kingdom)
+            {
                 EnsureIdeologyRegistry();
+                string raceId = kingdom == null
+                    ? ""
+                    : GetKingdomRaceIdForPolitics(kingdom);
+
                 int totalWeight = 0;
                 for (int i = 0; i < IdeologyIds.Length; i++)
                 {
                     string id = IdeologyIds[i];
-                    int weight = 100;
-                    if (AddonIdeologySources.ContainsKey(id))
-                    {
-                        if (!AddonIdeologyRandomWeights.TryGetValue(id, out weight))
-                        {
-                            weight = 0;
-                        }
-                    }
-                    totalWeight += Math.Max(0, weight);
+                    int weight = GetSeedIdeologyBaseWeight(id);
+                    float raceMultiplier = PoliticalWorldAPI.Races.GetIdeologyWeight(
+                        raceId,
+                        id
+                    );
+                    int adjusted = Math.Max(
+                        0,
+                        (int)Math.Round(weight * raceMultiplier)
+                    );
+                    totalWeight += adjusted;
                 }
 
                 if (totalWeight <= 0)
@@ -783,22 +1006,35 @@ namespace Lous12.PoliticalWorld
                 for (int i = 0; i < IdeologyIds.Length; i++)
                 {
                     string id = IdeologyIds[i];
-                    int weight = 100;
-                    if (AddonIdeologySources.ContainsKey(id))
-                    {
-                        if (!AddonIdeologyRandomWeights.TryGetValue(id, out weight))
-                        {
-                            weight = 0;
-                        }
-                    }
-                    weight = Math.Max(0, weight);
-                    if (roll < weight)
+                    int weight = GetSeedIdeologyBaseWeight(id);
+                    float raceMultiplier = PoliticalWorldAPI.Races.GetIdeologyWeight(
+                        raceId,
+                        id
+                    );
+                    int adjusted = Math.Max(
+                        0,
+                        (int)Math.Round(weight * raceMultiplier)
+                    );
+                    if (roll < adjusted)
                     {
                         return id;
                     }
-                    roll -= weight;
+                    roll -= adjusted;
                 }
                 return ConservatismIdeologyId;
+            }
+
+            private static int GetSeedIdeologyBaseWeight(string id)
+            {
+                int weight = 100;
+                if (AddonIdeologySources.ContainsKey(id))
+                {
+                    if (!AddonIdeologyRandomWeights.TryGetValue(id, out weight))
+                    {
+                        weight = 0;
+                    }
+                }
+                return Math.Max(0, weight);
             }
 
             private static bool RootIdeologyArrayContains(string id)
@@ -854,6 +1090,9 @@ namespace Lous12.PoliticalWorld
                 return new KingdomState()
                 {
                     KingdomName = GetWorldObjectDisplayName(kingdom),
+                    BaseCountryName = GetBaseCountryName(kingdom),
+                    PoliticalCountryName = GetPoliticalCountryDisplayName(kingdom),
+                    RaceId = GetKingdomRaceIdForPolitics(kingdom),
                     IdeologyId = ideology,
                     IdeologyName = ResolveIdeologyDisplayName(GetIdeologyNode(ideology)),
                     CurrentId = current,
@@ -923,6 +1162,11 @@ namespace Lous12.PoliticalWorld
 
                     if (!string.Equals(previousPublic, currentPublic, StringComparison.Ordinal))
                     {
+                        RefreshPoliticalCountryDisplayName(kingdom);
+                    }
+
+                    if (!string.Equals(previousPublic, currentPublic, StringComparison.Ordinal))
+                    {
                         PoliticalWorldAPI.InternalEmitCoreEvent(
                             PoliticalWorldAPI.Events.GovernmentChanged,
                             kingdom,
@@ -947,13 +1191,11 @@ namespace Lous12.PoliticalWorld
                             35f
                         );
                     }
-                    GetPoliticalSystem(kingdom);
                     return true;
                 }
 
                 if (!IsValidGovernmentForm(wanted)) return false;
                 SetGovernmentForm(kingdom, wanted, publishEvent);
-                GetPoliticalSystem(kingdom);
                 return true;
             }
 
@@ -998,7 +1240,7 @@ namespace Lous12.PoliticalWorld
                 List<PoliticalParty> parties;
                 if (includeInactive)
                 {
-                    parties = LoadPoliticalPartiesInternal(kingdom, true);
+                    parties = LoadPoliticalPartiesInternal(kingdom, true, false);
                     List<PoliticalParty> activeParties = new List<PoliticalParty>();
                     for (int i = 0; i < parties.Count; i++)
                     {
@@ -1011,7 +1253,7 @@ namespace Lous12.PoliticalWorld
                 }
                 else
                 {
-                    parties = GetPoliticalParties(kingdom);
+                    parties = GetPoliticalPartiesReadOnly(kingdom);
                 }
 
                 string rulingId = GetStoredRulingPartyId(kingdom);
@@ -1047,7 +1289,7 @@ namespace Lous12.PoliticalWorld
                 bool includeInactive
             )
             {
-                PoliticalParty party = FindPartyById(kingdom, partyId);
+                PoliticalParty party = FindPartyByIdReadOnly(kingdom, partyId);
                 if (
                     party == null ||
                     (!includeInactive && !party.Active)
@@ -1058,7 +1300,7 @@ namespace Lous12.PoliticalWorld
 
                 if (party.Active)
                 {
-                    List<PoliticalParty> active = GetPoliticalParties(kingdom);
+                    List<PoliticalParty> active = GetPoliticalPartiesReadOnly(kingdom);
                     for (int i = 0; i < active.Count; i++)
                     {
                         if (active[i] != null && active[i].Id == party.Id)
@@ -1084,13 +1326,13 @@ namespace Lous12.PoliticalWorld
                     return null;
                 }
 
-                PoliticalParty party = FindPartyById(kingdom, rulingId);
+                PoliticalParty party = FindPartyByIdReadOnly(kingdom, rulingId);
                 if (party == null || !party.Active)
                 {
                     return null;
                 }
 
-                List<PoliticalParty> active = GetPoliticalParties(kingdom);
+                List<PoliticalParty> active = GetPoliticalPartiesReadOnly(kingdom);
                 for (int i = 0; i < active.Count; i++)
                 {
                     if (active[i] != null && active[i].Id == rulingId)
@@ -1108,7 +1350,7 @@ namespace Lous12.PoliticalWorld
                 string partyId
             )
             {
-                PoliticalParty party = FindPartyById(kingdom, partyId);
+                PoliticalParty party = FindPartyByIdReadOnly(kingdom, partyId);
                 if (party == null)
                 {
                     return null;
@@ -1251,13 +1493,27 @@ namespace Lous12.PoliticalWorld
                 int previousSupport = ClampInt(target.Support, 0, 100);
                 int targetSupport = ClampInt(support, 0, 100);
                 List<City> cities = GetCitiesSafe(kingdom);
+
                 for (int c = 0; c < cities.Count; c++)
                 {
                     City city = cities[c];
-                    if (city == null)
+                    if (city == null || city.data == null)
                     {
                         continue;
                     }
+
+                    // Party support is a share of citizens who already belong
+                    // to the party's ideology. Editing one party must therefore
+                    // never redistribute voters from unrelated ideologies.
+                    int ideologySupport = GetCityIdeologySupport(
+                        city,
+                        target.Ideology
+                    );
+                    int desired = ClampInt(
+                        targetSupport,
+                        0,
+                        ideologySupport
+                    );
 
                     List<PoliticalParty> others = new List<PoliticalParty>();
                     List<int> otherSupport = new List<int>();
@@ -1266,72 +1522,85 @@ namespace Lous12.PoliticalWorld
                     for (int p = 0; p < parties.Count; p++)
                     {
                         PoliticalParty party = parties[p];
-                        if (party == null || !party.Active || party.Id == target.Id)
+                        if (
+                            party == null ||
+                            !party.Active ||
+                            party.Id == target.Id ||
+                            party.Ideology != target.Ideology
+                        )
                         {
                             continue;
                         }
 
                         int current;
                         bool initialized;
-                        GetLocalPartySupport(city, party, out current, out initialized);
+                        GetLocalPartySupport(
+                            city,
+                            party,
+                            out current,
+                            out initialized
+                        );
                         if (!initialized)
                         {
-                            Dictionary<string, int> targets = CalculateCityPartyTargets(
-                                kingdom,
-                                city,
-                                parties,
-                                party.Ideology
-                            );
+                            Dictionary<string, int> targets =
+                                CalculateCityPartyTargets(
+                                    kingdom,
+                                    city,
+                                    parties,
+                                    party.Ideology
+                                );
                             targets.TryGetValue(party.Id, out current);
                         }
 
-                        current = ClampInt(current, 0, 100);
+                        current = ClampInt(current, 0, ideologySupport);
                         others.Add(party);
                         otherSupport.Add(current);
                         otherTotal += current;
                     }
 
-                    if (others.Count == 0)
-                    {
-                        SetLocalPartySupport(city, target, 100);
-                        continue;
-                    }
+                    SetLocalPartySupport(city, target, desired);
 
-                    SetLocalPartySupport(city, target, targetSupport);
-                    int remaining = 100 - targetSupport;
-                    int assigned = 0;
-
-                    for (int i = 0; i < others.Count; i++)
+                    int remaining = Math.Max(0, ideologySupport - desired);
+                    if (otherTotal > remaining && otherTotal > 0)
                     {
-                        int value;
-                        if (otherTotal <= 0)
+                        int assigned = 0;
+                        int bestIndex = -1;
+                        int bestValue = -1;
+
+                        for (int i = 0; i < others.Count; i++)
                         {
-                            value = remaining / others.Count;
+                            int value = (int)Math.Floor(
+                                remaining *
+                                (otherSupport[i] / (double)otherTotal)
+                            );
+                            value = ClampInt(value, 0, remaining);
+                            assigned += value;
+                            SetLocalPartySupport(city, others[i], value);
+
+                            if (value > bestValue)
+                            {
+                                bestValue = value;
+                                bestIndex = i;
+                            }
                         }
-                        else
+
+                        int leftover = Math.Max(0, remaining - assigned);
+                        if (leftover > 0 && bestIndex >= 0)
                         {
-                            value = (int)Math.Floor(
-                                remaining * (otherSupport[i] / (double)otherTotal)
+                            int current;
+                            bool initialized;
+                            GetLocalPartySupport(
+                                city,
+                                others[bestIndex],
+                                out current,
+                                out initialized
+                            );
+                            SetLocalPartySupport(
+                                city,
+                                others[bestIndex],
+                                ClampInt(current + leftover, 0, remaining)
                             );
                         }
-
-                        value = ClampInt(value, 0, remaining);
-                        assigned += value;
-                        SetLocalPartySupport(city, others[i], value);
-                    }
-
-                    int leftover = Math.Max(0, remaining - assigned);
-                    if (leftover > 0)
-                    {
-                        PoliticalParty receiver = others[0];
-                        int receiverCurrent;
-                        bool receiverInitialized;
-                        GetLocalPartySupport(city, receiver, out receiverCurrent, out receiverInitialized);
-                        SetLocalPartySupport(
-                            city,
-                            receiver,
-                            ClampInt(receiverCurrent + leftover, 0, 100)
-                        );
                     }
                 }
 
@@ -1420,7 +1689,9 @@ namespace Lous12.PoliticalWorld
                 {
                     party.Name = GetPartyLocalizedName(
                         ideologyId,
-                        party.NameVariant
+                        party.NameVariant,
+                        kingdom,
+                        party.NameStyle
                     );
                 }
 
@@ -1475,6 +1746,240 @@ namespace Lous12.PoliticalWorld
                     );
                 }
 
+                return true;
+            }
+
+            // Party Editor variant: changing a party ideology should not
+            // instantly erase the electorate that the player just edited.
+            // Political World models party support inside citizen ideologies,
+            // so the editor moves the party's existing local supporters with
+            // the party before the normal regional support pass runs.
+            public static bool SetKingdomPartyIdeologyPreservingSupport(
+                Kingdom kingdom,
+                string partyId,
+                string ideologyId
+            )
+            {
+                if (
+                    kingdom == null ||
+                    !IsValidIdeology(ideologyId)
+                )
+                {
+                    return false;
+                }
+
+                PoliticalParty before = FindPartyById(kingdom, partyId);
+                if (before == null)
+                {
+                    return false;
+                }
+
+                string previousIdeology = before.Ideology ?? "";
+                if (previousIdeology == ideologyId)
+                {
+                    return true;
+                }
+
+                List<City> cities = GetCitiesSafe(kingdom);
+                List<int> localSupport = new List<int>();
+                List<PoliticalParty> activeBefore = GetPoliticalParties(kingdom);
+
+                for (int c = 0; c < cities.Count; c++)
+                {
+                    City city = cities[c];
+                    int current = 0;
+                    bool initialized = false;
+
+                    if (city != null)
+                    {
+                        GetLocalPartySupport(
+                            city,
+                            before,
+                            out current,
+                            out initialized
+                        );
+
+                        if (!initialized)
+                        {
+                            Dictionary<string, int> targets =
+                                CalculateCityPartyTargets(
+                                    kingdom,
+                                    city,
+                                    activeBefore,
+                                    previousIdeology
+                                );
+                            targets.TryGetValue(before.Id, out current);
+                        }
+
+                        current = ClampInt(
+                            current,
+                            0,
+                            GetCityIdeologySupport(
+                                city,
+                                previousIdeology
+                            )
+                        );
+                    }
+
+                    localSupport.Add(current);
+                }
+
+                if (!SetKingdomPartyIdeology(kingdom, partyId, ideologyId))
+                {
+                    return false;
+                }
+
+                PoliticalParty after = FindPartyById(kingdom, partyId);
+                if (after == null)
+                {
+                    return false;
+                }
+
+                int preservedNationalSupport = 0;
+                for (int c = 0; c < cities.Count; c++)
+                {
+                    City city = cities[c];
+                    if (city == null || city.data == null)
+                    {
+                        continue;
+                    }
+
+                    int support = c < localSupport.Count
+                        ? localSupport[c]
+                        : 0;
+
+                    MovePartyEditorSupportersToIdeology(
+                        city,
+                        previousIdeology,
+                        ideologyId,
+                        support
+                    );
+                    SetLocalPartySupport(city, after, support);
+                    preservedNationalSupport += support;
+                }
+
+                if (preservedNationalSupport > 0)
+                {
+                    string suffix = GetMovementKeySuffix(ideologyId);
+                    SetKingdomIntData(
+                        kingdom,
+                        MovementActivePrefix + suffix,
+                        1
+                    );
+                }
+
+                List<PoliticalParty> activeAfter = GetPoliticalParties(kingdom);
+                UpdateRegionalPartySupport(kingdom, activeAfter);
+                AggregatePartySupportFromCities(kingdom, activeAfter);
+                SyncLegacyPartyCompatibility(kingdom, activeAfter);
+                SyncPartyMandateCache(kingdom, after);
+                return true;
+            }
+
+            private static void MovePartyEditorSupportersToIdeology(
+                City city,
+                string previousIdeology,
+                string ideologyId,
+                int localSupport
+            )
+            {
+                if (
+                    city == null ||
+                    !IsValidIdeology(previousIdeology) ||
+                    !IsValidIdeology(ideologyId) ||
+                    previousIdeology == ideologyId ||
+                    localSupport <= 0
+                )
+                {
+                    return;
+                }
+
+                List<Actor> units = GetCityUnitsSafe(city);
+                if (units.Count == 0)
+                {
+                    return;
+                }
+
+                int alive = 0;
+                for (int i = 0; i < units.Count; i++)
+                {
+                    Actor actor = units[i];
+                    if (
+                        actor != null &&
+                        actor.data != null &&
+                        actor.isAlive()
+                    )
+                    {
+                        alive++;
+                    }
+                }
+
+                int needed = ClampInt(
+                    (int)Math.Round(alive * localSupport / 100f),
+                    0,
+                    alive
+                );
+                if (needed <= 0)
+                {
+                    return;
+                }
+
+                Kingdom cityKingdom = GetKingdomFromObject(city);
+                string fallbackIdeology = GetStateIdeology(cityKingdom);
+                int moved = 0;
+
+                for (int i = 0; i < units.Count && moved < needed; i++)
+                {
+                    Actor actor = units[i];
+                    if (
+                        actor == null ||
+                        actor.data == null ||
+                        !actor.isAlive()
+                    )
+                    {
+                        continue;
+                    }
+
+                    string current = GetCitizenIdeology(actor);
+                    if (!IsValidIdeology(current))
+                    {
+                        current = fallbackIdeology;
+                    }
+                    if (current != previousIdeology)
+                    {
+                        continue;
+                    }
+
+                    SetCitizenIdeology(actor, ideologyId);
+                    moved++;
+                }
+            }
+
+            public static bool SetKingdomPartyColorSeed(
+                Kingdom kingdom,
+                string partyId,
+                int colorSeed
+            )
+            {
+                PoliticalParty party = FindPartyById(kingdom, partyId);
+                if (party == null || PartyColorVariantCount <= 0)
+                {
+                    return false;
+                }
+
+                int normalized = colorSeed % PartyColorVariantCount;
+                if (normalized < 0)
+                {
+                    normalized += PartyColorVariantCount;
+                }
+
+                SetKingdomIntData(
+                    kingdom,
+                    PartySlotKey(PartyV2ColorSeedPrefix, party.Slot),
+                    normalized
+                );
+                party.ColorSeed = normalized;
+                SyncPartyMandateCache(kingdom, party);
                 return true;
             }
 
@@ -2234,7 +2739,7 @@ namespace Lous12.PoliticalWorld
                 return false;
             }
 
-            private static HashSet<string> GetReservedPartyLeaderIdentities(
+            internal static HashSet<string> GetReservedPartyLeaderIdentities(
                 Kingdom kingdom,
                 string exceptPartyId
             )
@@ -2339,6 +2844,28 @@ namespace Lous12.PoliticalWorld
                     party.Id ?? ""
                 );
                 return true;
+            }
+
+            private static PoliticalParty FindPartyByIdReadOnly(
+                Kingdom kingdom,
+                string partyId
+            )
+            {
+                if (kingdom == null || string.IsNullOrEmpty(partyId))
+                {
+                    return null;
+                }
+
+                List<PoliticalParty> parties =
+                    LoadPoliticalPartiesInternal(kingdom, true, false);
+                for (int i = 0; i < parties.Count; i++)
+                {
+                    if (parties[i] != null && parties[i].Id == partyId)
+                    {
+                        return parties[i];
+                    }
+                }
+                return null;
             }
 
             private static PoliticalParty FindPartyById(Kingdom kingdom, string partyId)

@@ -1,6 +1,6 @@
 # AI_START_HERE — Political World
 
-You are working with Political World 1.7 and Public PoliticalWorldAPI 1.6.
+You are working with Political World 1.11 and Public PoliticalWorldAPI 1.6.
 
 ## If creating an addon
 

@@ -190,6 +190,62 @@ namespace Lous12.PoliticalWorld
             }
         }
 
+        private static void CreateAddonInspectorPower()
+        {
+            AssetManager.powers.add(
+                CreateBasePower(
+                    AddonInspectorPowerId,
+                    new PowerActionWithID(OpenAddonInspector)
+                )
+            );
+        }
+
+        private static void CreateAddonInspectorWindow()
+        {
+            try
+            {
+                AddonInspectorWindow.CreateWindow(
+                    AddonInspectorWindowId,
+                    "pw_api_addon_inspector_title"
+                );
+            }
+            catch (Exception exception)
+            {
+                LogWarning(
+                    "Could not create Addon Inspector window: " +
+                    exception.Message
+                );
+            }
+        }
+
+        private static void CreatePoliticalChroniclePower()
+        {
+            AssetManager.powers.add(
+                CreateBasePower(
+                    PoliticalChroniclePowerId,
+                    new PowerActionWithID(OpenPoliticalChronicle)
+                )
+            );
+        }
+
+        private static void CreatePoliticalChronicleWindow()
+        {
+            try
+            {
+                PoliticalChronicleWindow.CreateWindow(
+                    PoliticalChronicleWindowId,
+                    "ukiol_political_chronicle_title"
+                );
+            }
+            catch (Exception exception)
+            {
+                LogWarning(
+                    "Could not create Political Chronicle window: " +
+                    exception.Message
+                );
+            }
+        }
+
         private static void CreateMonarchismPower()
         {
             AssetManager.powers.add(CreateBasePower(
@@ -372,19 +428,19 @@ namespace Lous12.PoliticalWorld
             }
         }
 
-        private static void CreatePartyRenameWindow()
+        private static void CreatePartyEditorWindow()
         {
             try
             {
-                PartyRenameWindow.CreateWindow(
-                    PartyRenameWindowId,
-                    "ukiol_party_rename_title"
+                PartyEditorWindow.CreateWindow(
+                    PartyEditorWindowId,
+                    "ukiol_party_editor_title"
                 );
             }
             catch (Exception exception)
             {
                 LogWarning(
-                    "Could not create Party Rename window: " +
+                    "Could not create Party Editor window: " +
                     exception.Message
                 );
             }
@@ -453,13 +509,55 @@ namespace Lous12.PoliticalWorld
             // mode indicators are visible underneath; X/Z still cycles
             // Parties, Ideologies and Political Tension.
             AddPoliticsToolbarToggleButton(PoliticalMapPowerId, OverviewIconPath);
+
+            // 1.8-dev2: Chronicle is a real window button. It opens immediately
+            // and no longer leaves a sandbox power selected or requires a map click.
+            AddPoliticsToolbarWindowButton(
+                PoliticalChroniclePowerId,
+                PoliticalChronicleWindowId,
+                HistoryIconPath
+            );
             AddPoliticsNativeSeparator("map_layer_to_stability");
 
             // Stability tools.
             AddPoliticsToolbarButton(StabilizeCityPowerId, DiplomatIconPath);
             AddPoliticsToolbarButton(DestabilizeCityPowerId, MilitaristIconPath);
+            AddPoliticsNativeSeparator("stability_to_addon_inspector");
+
+            // API 1.12 universal addon inspector host. Addons register their
+            // own sections/actions through PoliticalWorldAPI.UI; the core
+            // window renders them without knowing addon-specific systems.
+            AddPoliticsToolbarButton(AddonInspectorPowerId, OverviewIconPath);
 
             RefreshPoliticsTabButtonNavigation();
+        }
+
+        private static void AddPoliticsToolbarWindowButton(
+            string pButtonId,
+            string pWindowId,
+            string pIconPath
+        )
+        {
+            if (_politicsTab == null)
+            {
+                return;
+            }
+
+            PowerButton button = PowerButtonCreator.CreateWindowButton(
+                pButtonId,
+                pWindowId,
+                SpriteTextureLoader.getSprite(pIconPath)
+            );
+
+            if (button == null)
+            {
+                LogWarning(
+                    "Could not create Politics window button: " + pButtonId
+                );
+                return;
+            }
+
+            PowerButtonCreator.AddButtonToTab(button, _politicsTab);
         }
 
         private static void AddPoliticsToolbarButton(
@@ -917,6 +1015,51 @@ namespace Lous12.PoliticalWorld
             {
                 LogWarning(
                     "Could not open Political Overview: " +
+                    exception.Message
+                );
+                return false;
+            }
+        }
+
+        private static bool OpenPoliticalChronicle(
+            WorldTile pTile,
+            string pPowerId
+        )
+        {
+            try
+            {
+                PoliticalChronicleWindow.Open();
+                return true;
+            }
+            catch (Exception exception)
+            {
+                LogWarning(
+                    "Could not open Political Chronicle: " +
+                    exception.Message
+                );
+                return false;
+            }
+        }
+
+        private static bool OpenAddonInspector(
+            WorldTile pTile,
+            string pPowerId
+        )
+        {
+            try
+            {
+                if (pTile == null || pTile.zone == null || pTile.zone.city == null)
+                {
+                    return false;
+                }
+
+                AddonInspectorWindow.OpenForTile(pTile);
+                return true;
+            }
+            catch (Exception exception)
+            {
+                LogWarning(
+                    "Could not open Addon Inspector: " +
                     exception.Message
                 );
                 return false;

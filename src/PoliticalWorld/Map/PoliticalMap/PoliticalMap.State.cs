@@ -28,6 +28,7 @@ namespace Lous12.PoliticalWorld
         private const int PoliticalMapModeIdeologies = 1;
         private const int PoliticalMapModeTension = 2;
         private const float PoliticalMapVisualRefreshInterval = 1.5f;
+        private const int PoliticalMapMetaCacheLimit = 1024;
 
         private static bool _politicalMapMetaStringPatchInstalled;
         private static bool _politicalMapBorderModePatchInstalled;

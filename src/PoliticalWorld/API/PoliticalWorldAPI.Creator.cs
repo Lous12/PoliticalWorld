@@ -46,10 +46,14 @@ namespace Lous12.PoliticalWorld
             public int Governments;
             public int Actions;
             public int RarePoliticalEvents;
+            public int GenericContentTypes;
+            public int GenericContent;
             public string[] IdeologyIds;
             public string[] GovernmentIds;
             public string[] ActionIds;
             public string[] RarePoliticalEventIds;
+            public string[] GenericContentTypeIds;
+            public string[] GenericContentIds;
         }
 
         private static readonly Dictionary<string, Dictionary<string, string>>
@@ -452,6 +456,17 @@ namespace Lous12.PoliticalWorld
             List<GovernmentInfo> governments = GetGovernmentsByAddon(owner);
             List<ActionInfo> actions = GetActionsByAddon(owner);
             List<RarePoliticalEventInfo> rare = GetRarePoliticalEventsByAddon(owner);
+            List<GenericContentTypeInfo> genericTypes = new List<GenericContentTypeInfo>();
+            List<GenericContentTypeInfo> allGenericTypes = Content.GetTypes();
+            for (int i = 0; i < allGenericTypes.Count; i++)
+            {
+                GenericContentTypeInfo type = allGenericTypes[i];
+                if (type != null && string.Equals(type.Source, owner, StringComparison.Ordinal))
+                {
+                    genericTypes.Add(type);
+                }
+            }
+            List<GenericContentInfo> genericContent = Content.GetByAddon(owner);
 
             return new AddonContentSummary()
             {
@@ -460,10 +475,14 @@ namespace Lous12.PoliticalWorld
                 Governments = governments.Count,
                 Actions = actions.Count,
                 RarePoliticalEvents = rare.Count,
+                GenericContentTypes = genericTypes.Count,
+                GenericContent = genericContent.Count,
                 IdeologyIds = ExtractIds(ideologies, x => x.Id),
                 GovernmentIds = ExtractIds(governments, x => x.Id),
                 ActionIds = ExtractIds(actions, x => x.Id),
-                RarePoliticalEventIds = ExtractIds(rare, x => x.Id)
+                RarePoliticalEventIds = ExtractIds(rare, x => x.Id),
+                GenericContentTypeIds = ExtractIds(genericTypes, x => x.Id),
+                GenericContentIds = ExtractIds(genericContent, x => x.Id)
             };
         }
 

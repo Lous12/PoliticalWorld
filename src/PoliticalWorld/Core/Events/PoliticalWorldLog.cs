@@ -23,6 +23,18 @@ namespace Lous12.PoliticalWorld
                 return "?";
             }
 
+            // 1.10-dev1: Political World uses a political display layer for
+            // kingdoms while preserving the original vanilla name underneath.
+            Kingdom kingdom = obj as Kingdom;
+            if (kingdom != null)
+            {
+                string politicalName = GetPoliticalCountryDisplayName(kingdom);
+                if (!string.IsNullOrWhiteSpace(politicalName))
+                {
+                    return politicalName;
+                }
+            }
+
             string[] methodNames =
             {
                 "getName",
@@ -243,7 +255,15 @@ namespace Lous12.PoliticalWorld
                 eventKey.StartsWith("crisis_rejected_") ||
                 eventKey.StartsWith("crisis_escalated_") ||
                 eventKey.StartsWith("crisis_ended_") ||
-                eventKey.StartsWith("rebellion_started_")
+                eventKey.StartsWith("rebellion_started_") ||
+
+                // FIX5 quiet feed: these are intermediate/status messages,
+                // not outcomes. They remain available through the API, but
+                // no longer flood the native WorldLog.
+                eventKey.StartsWith("ideology_evolution_") ||
+                eventKey.StartsWith("summit_called_") ||
+                eventKey.StartsWith("summit_opened_") ||
+                eventKey.StartsWith("summit_cancelled_")
             );
         }
 
@@ -272,6 +292,12 @@ namespace Lous12.PoliticalWorld
                 return "crisis_accepted";
             if (eventKey.StartsWith("current_changed_"))
                 return "current_changed";
+            if (eventKey.StartsWith("government_changed_"))
+                return "government_changed";
+            if (eventKey.StartsWith("leadership_succession_"))
+                return "leadership_succession";
+            if (eventKey.StartsWith("summit_vote_"))
+                return "summit_vote";
 
             return eventKey;
         }
@@ -299,10 +325,59 @@ namespace Lous12.PoliticalWorld
                 return Math.Max(result, 75f);
             if (eventKey.StartsWith("current_changed_"))
                 return Math.Max(result, 90f);
+            if (eventKey.StartsWith("government_changed_"))
+                return Math.Max(result, 60f);
+            if (eventKey.StartsWith("leadership_succession_"))
+                return Math.Max(result, 45f);
+            if (eventKey.StartsWith("summit_vote_"))
+                return Math.Max(result, 30f);
 
-            // Coup/revolution/succession/party split remain high-priority and
-            // keep their original cooldown behaviour.
+            // Coup/revolution/party split remain high-priority and keep their
+            // original cooldown behaviour.
             return result;
+        }
+
+        private static bool UsesGlobalPoliticalWorldLogCooldown(
+            string eventKey
+        )
+        {
+            if (string.IsNullOrEmpty(eventKey))
+            {
+                return false;
+            }
+
+            // Low/medium priority events are throttled across the whole world,
+            // not independently for every kingdom. Otherwise 10-20 kingdoms
+            // can still fill the feed in the same political tick.
+            return
+                eventKey.StartsWith("movement_formed_") ||
+                eventKey.StartsWith("movement_radical_") ||
+                eventKey.StartsWith("party_formed_") ||
+                eventKey.StartsWith("crisis_started_") ||
+                eventKey.StartsWith("crisis_accepted_") ||
+                eventKey.StartsWith("current_changed_") ||
+                eventKey.StartsWith("government_changed_") ||
+                eventKey.StartsWith("leadership_succession_") ||
+                eventKey.StartsWith("summit_vote_");
+        }
+
+        private static bool ShouldTracePoliticalEventToModLog(
+            string eventKey
+        )
+        {
+            if (string.IsNullOrEmpty(eventKey))
+            {
+                return true;
+            }
+
+            // Keep Player.log readable too. These repetitive status events are
+            // still emitted through PoliticalWorldAPI for addons/diagnostics.
+            return !(
+                eventKey.StartsWith("ideology_evolution_") ||
+                eventKey.StartsWith("summit_called_") ||
+                eventKey.StartsWith("summit_opened_") ||
+                eventKey.StartsWith("summit_cancelled_")
+            );
         }
 
         private static void PublishPoliticalEvent(
@@ -312,7 +387,9 @@ namespace Lous12.PoliticalWorld
             Actor actor,
             string iconPath,
             string eventKey,
-            float cooldownSeconds
+            float cooldownSeconds,
+            IList<string> causes = null,
+            IList<string> consequences = null
         )
         {
             if (string.IsNullOrEmpty(text))
@@ -320,9 +397,24 @@ namespace Lous12.PoliticalWorld
                 return;
             }
 
-            // Always keep a textual trace for debugging even when a secondary
-            // event is intentionally omitted from the compact WorldLog feed.
-            LogInfo("[Political Event] " + text);
+            // 1.8-dev1: the Chronicle stores every political domain event
+            // before notification filtering/cooldowns. Quiet-feed events are
+            // therefore still available for later inspection by the player.
+            AddPoliticalChronicleEntry(
+                text,
+                kingdom,
+                city,
+                actor,
+                iconPath,
+                eventKey,
+                causes,
+                consequences
+            );
+
+            if (ShouldTracePoliticalEventToModLog(eventKey))
+            {
+                LogInfo("[Political Event] " + text);
+            }
 
             PoliticalWorldAPI.InternalEmitCoreEvent(
                 PoliticalWorldAPI.Events.PoliticalEventPublished,
@@ -348,7 +440,10 @@ namespace Lous12.PoliticalWorld
                 eventKey,
                 text
             );
-            string key = kingdomId + "|" + groupedEventKey;
+            string cooldownScope = UsesGlobalPoliticalWorldLogCooldown(eventKey)
+                ? "world"
+                : kingdomId;
+            string key = cooldownScope + "|" + groupedEventKey;
             float nextAllowed;
 
             if (

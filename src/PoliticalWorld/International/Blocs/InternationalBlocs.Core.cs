@@ -30,6 +30,7 @@ namespace Lous12.PoliticalWorld
                 return;
             }
             _lastInternationalBlocUpdateYear = currentYear;
+            RefreshInternationalBlocGeographyCache();
 
             RebuildInternationalBlocRuntimeIndex();
 
@@ -37,6 +38,23 @@ namespace Lous12.PoliticalWorld
             // participate in Political World instead of competing with it.
             ImportUnmanagedNativeAlliancesAsInternationalBlocs(currentYear);
             RebuildInternationalBlocRuntimeIndex();
+
+            // v1.7.2-dev1 MAP LOAD FIX: the first bloc pass for a loaded world
+            // is import-only. Preserve the map author's existing vanilla
+            // alliances instead of immediately dissolving/joining/founding
+            // several new ones in the same startup year. Normal autonomous
+            // bloc politics begins on the next world-year update.
+            if (_internationalBlocBootstrapPending)
+            {
+                _internationalBlocBootstrapPending = false;
+                ApplyInternationalBlocBenefits();
+                LogInfo(
+                    "[PW-MAP-LOAD] international blocs imported without " +
+                    "startup alliance mutations; autonomous bloc changes " +
+                    "resume next world year"
+                );
+                return;
+            }
 
             MaintainInternationalBlocs(currentYear);
             RebuildInternationalBlocRuntimeIndex();
@@ -263,7 +281,8 @@ namespace Lous12.PoliticalWorld
                         leavers[l],
                         bloc,
                         currentYear,
-                        true
+                        true,
+                        "autonomous"
                     );
                 }
 
@@ -374,6 +393,10 @@ namespace Lous12.PoliticalWorld
                         GetStableObjectIdentity(candidate),
                     20f
                 );
+
+                // Avoid map-wide alliance reshuffles in one annual simulation
+                // pass. Additional eligible kingdoms can join in later years.
+                return;
             }
         }
 
@@ -431,6 +454,11 @@ namespace Lous12.PoliticalWorld
                     bestScore,
                     currentYear
                 );
+
+                // At most one brand-new bloc per world year. The previous loop
+                // could pair most unaligned kingdoms at once after loading a
+                // Workshop map, which looked like the map had been rewritten.
+                return;
             }
         }
 
@@ -622,6 +650,14 @@ namespace Lous12.PoliticalWorld
             if (GetKingdomCourse(first) == MilitaristTraitId) score -= 3;
             if (GetKingdomCourse(second) == MilitaristTraitId) score -= 3;
 
+            // Nearby states are more likely to build the first generation of
+            // blocs. Distant states are still possible when ideology,
+            // reputation and later bloc integration are strong enough.
+            score += CalculateInternationalBlocGeographicModifier(
+                first,
+                second
+            );
+
             bool hardIdeologyConflict =
                 (firstIdeology == FascismIdeologyId &&
                     (secondIdeology == CommunismIdeologyId ||
@@ -635,6 +671,140 @@ namespace Lous12.PoliticalWorld
             }
 
             return ClampInt(score, 0, 100);
+        }
+
+        private static void RefreshInternationalBlocGeographyCache()
+        {
+            _internationalBlocGeographyCacheValid = false;
+            _internationalBlocGeographyKingdomCount = 0;
+
+            List<Kingdom> kingdoms = GetKingdomsSafe();
+            bool hasCoordinate = false;
+            int minX = 0;
+            int maxX = 0;
+            int minY = 0;
+            int maxY = 0;
+
+            for (int i = 0; i < kingdoms.Count; i++)
+            {
+                Kingdom kingdom = kingdoms[i];
+                City capital = GetKingdomCapitalCitySafe(kingdom);
+                if (capital == null)
+                {
+                    continue;
+                }
+
+                object tile = null;
+                try { tile = capital.getTile(); } catch { }
+
+                int x;
+                int y;
+                if (!TryGetTileCoordinates(tile, out x, out y))
+                {
+                    continue;
+                }
+
+                if (!hasCoordinate)
+                {
+                    minX = maxX = x;
+                    minY = maxY = y;
+                    hasCoordinate = true;
+                }
+                else
+                {
+                    minX = Math.Min(minX, x);
+                    maxX = Math.Max(maxX, x);
+                    minY = Math.Min(minY, y);
+                    maxY = Math.Max(maxY, y);
+                }
+
+                _internationalBlocGeographyKingdomCount++;
+            }
+
+            if (!hasCoordinate)
+            {
+                return;
+            }
+
+            _internationalBlocGeographyMinX = minX;
+            _internationalBlocGeographyMaxX = maxX;
+            _internationalBlocGeographyMinY = minY;
+            _internationalBlocGeographyMaxY = maxY;
+            _internationalBlocGeographyCacheValid = true;
+        }
+
+        private static int CalculateInternationalBlocGeographicModifier(
+            Kingdom first,
+            Kingdom second
+        )
+        {
+            if (first == null || second == null || first == second)
+            {
+                return 0;
+            }
+
+            if (!_internationalBlocGeographyCacheValid)
+            {
+                RefreshInternationalBlocGeographyCache();
+            }
+
+            // With only two surviving states there is no meaningful
+            // alternative regional partner, so geography stays neutral.
+            if (
+                !_internationalBlocGeographyCacheValid ||
+                _internationalBlocGeographyKingdomCount <= 2
+            )
+            {
+                return 0;
+            }
+
+            City firstCapital = GetKingdomCapitalCitySafe(first);
+            City secondCapital = GetKingdomCapitalCitySafe(second);
+            if (firstCapital == null || secondCapital == null)
+            {
+                return 0;
+            }
+
+            object firstTile = null;
+            object secondTile = null;
+            try { firstTile = firstCapital.getTile(); } catch { }
+            try { secondTile = secondCapital.getTile(); } catch { }
+
+            int firstX;
+            int firstY;
+            int secondX;
+            int secondY;
+            if (
+                !TryGetTileCoordinates(firstTile, out firstX, out firstY) ||
+                !TryGetTileCoordinates(secondTile, out secondX, out secondY)
+            )
+            {
+                return 0;
+            }
+
+            int worldSpan =
+                Math.Max(1,
+                    (_internationalBlocGeographyMaxX -
+                        _internationalBlocGeographyMinX) +
+                    (_internationalBlocGeographyMaxY -
+                        _internationalBlocGeographyMinY)
+                );
+            int capitalDistance =
+                Math.Abs(firstX - secondX) +
+                Math.Abs(firstY - secondY);
+            int distancePercent = ClampInt(
+                capitalDistance * 100 / worldSpan,
+                0,
+                100
+            );
+
+            if (distancePercent <= 12) return 12;
+            if (distancePercent <= 22) return 8;
+            if (distancePercent <= 35) return 3;
+            if (distancePercent <= 50) return -5;
+            if (distancePercent <= 65) return -11;
+            if (distancePercent <= 80) return -18;
+            return -26;
         }
 
         private static int CalculateCandidateBlocCompatibility(
@@ -1116,7 +1286,8 @@ namespace Lous12.PoliticalWorld
             Kingdom kingdom,
             InternationalBlocSnapshot bloc,
             int currentYear,
-            bool publish
+            bool publish,
+            string chronicleReason = ""
         )
         {
             if (kingdom == null || bloc == null || bloc.Members == null)
@@ -1139,6 +1310,82 @@ namespace Lous12.PoliticalWorld
 
             if (publish)
             {
+                List<string> causes = new List<string>();
+                if (chronicleReason == "internal_war")
+                {
+                    causes.Add(
+                        string.Format(
+                            LM.Get(
+                                "ukiol_chronicle_detail_bloc_internal_war"
+                            ),
+                            bloc.Unity,
+                            InternationalBlocDefenceUnity
+                        )
+                    );
+                }
+                else
+                {
+                    int compatibility = bloc.Leader == null
+                        ? 100
+                        : CalculateKingdomBlocCompatibility(
+                            kingdom,
+                            bloc.Leader
+                        );
+                    int reputation = GetDiplomaticReputation(kingdom);
+                    int stability = GetNationalStability(kingdom);
+
+                    if (compatibility < 30)
+                    {
+                        causes.Add(
+                            string.Format(
+                                LM.Get(
+                                    "ukiol_chronicle_detail_bloc_compatibility"
+                                ),
+                                compatibility
+                            )
+                        );
+                    }
+                    if (reputation < 25)
+                    {
+                        causes.Add(
+                            string.Format(
+                                LM.Get(
+                                    "ukiol_chronicle_detail_bloc_reputation"
+                                ),
+                                reputation
+                            )
+                        );
+                    }
+                    if (bloc.Unity < 30)
+                    {
+                        causes.Add(
+                            string.Format(
+                                LM.Get("ukiol_chronicle_detail_bloc_unity"),
+                                bloc.Unity
+                            )
+                        );
+                    }
+                    if (stability < 25)
+                    {
+                        causes.Add(
+                            string.Format(
+                                LM.Get(
+                                    "ukiol_chronicle_detail_bloc_stability"
+                                ),
+                                stability
+                            )
+                        );
+                    }
+                    if (causes.Count == 0)
+                    {
+                        causes.Add(
+                            LM.Get(
+                                "ukiol_chronicle_detail_bloc_membership_unstable"
+                            )
+                        );
+                    }
+                }
+
                 PublishPoliticalEvent(
                     string.Format(
                         LM.Get("ukiol_event_bloc_left"),
@@ -1151,7 +1398,24 @@ namespace Lous12.PoliticalWorld
                     DiplomatIconPath,
                     "bloc_left_" + bloc.Id + "_" +
                         GetStableObjectIdentity(kingdom),
-                    25f
+                    25f,
+                    causes,
+                    new List<string>
+                    {
+                        string.Format(
+                            LM.Get(
+                                "ukiol_chronicle_detail_bloc_left_consequence"
+                            ),
+                            bloc.Name
+                        ),
+                        string.Format(
+                            LM.Get(
+                                "ukiol_chronicle_detail_bloc_rejoin"
+                            ),
+                            currentYear +
+                                InternationalBlocRejoinCooldownYears
+                        )
+                    }
                 );
             }
         }
@@ -1440,7 +1704,8 @@ namespace Lous12.PoliticalWorld
                     attacker,
                     bloc,
                     GetWorldYearSafe(),
-                    true
+                    true,
+                    "internal_war"
                 );
                 RebuildInternationalBlocRuntimeIndex();
             }
@@ -2109,6 +2374,25 @@ namespace Lous12.PoliticalWorld
             return GetStableObjectIdentity(alliance);
         }
 
+        private static bool IsKingdomInCurrentWorld(Kingdom kingdom)
+        {
+            if (kingdom == null || World.world == null || World.world.kingdoms == null)
+            {
+                return false;
+            }
+
+            List<Kingdom> currentKingdoms = GetKingdomsSafe();
+            for (int i = 0; i < currentKingdoms.Count; i++)
+            {
+                if (object.ReferenceEquals(currentKingdoms[i], kingdom))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         private static Alliance CreateNativeAllianceForInternationalBloc(
             InternationalBlocSnapshot bloc
         )
@@ -2120,6 +2404,19 @@ namespace Lous12.PoliticalWorld
                 World.world == null ||
                 World.world.alliances == null
             )
+            {
+                return null;
+            }
+
+            int currentMemberCount = 0;
+            for (int i = 0; i < bloc.Members.Count; i++)
+            {
+                if (IsKingdomInCurrentWorld(bloc.Members[i]))
+                {
+                    currentMemberCount++;
+                }
+            }
+            if (currentMemberCount < InternationalBlocMinimumMembers)
             {
                 return null;
             }
@@ -2325,7 +2622,8 @@ namespace Lous12.PoliticalWorld
                 kingdom == null ||
                 targetAlliance == null ||
                 World.world == null ||
-                World.world.alliances == null
+                World.world.alliances == null ||
+                !IsKingdomInCurrentWorld(kingdom)
             )
             {
                 return;
@@ -2356,14 +2654,27 @@ namespace Lous12.PoliticalWorld
 
             try
             {
-                targetAlliance.kingdoms_hashset.Add(kingdom);
+                // Let the kingdom update its own alliance state first. Adding
+                // it to the native hashset before allianceJoin() can leave a
+                // ghost member behind if WorldBox rejects a stale/half-loaded
+                // kingdom reference. Alliance.checkActive() then repeatedly
+                // tries to remove that invalid member.
                 kingdom.allianceJoin(targetAlliance);
+                targetAlliance.kingdoms_hashset.Add(kingdom);
                 targetAlliance.recalculate();
                 targetAlliance.data.timestamp_member_joined =
                     World.world.getCurWorldTime();
             }
             catch (Exception exception)
             {
+                try
+                {
+                    targetAlliance.kingdoms_hashset.Remove(kingdom);
+                }
+                catch
+                {
+                }
+
                 LogWarning(
                     "Native alliance join failed for " +
                     GetWorldObjectDisplayName(kingdom) + ": " +
@@ -2377,7 +2688,11 @@ namespace Lous12.PoliticalWorld
             Alliance alliance
         )
         {
-            if (kingdom == null || alliance == null)
+            if (
+                kingdom == null ||
+                alliance == null ||
+                !IsKingdomInCurrentWorld(kingdom)
+            )
             {
                 return;
             }
@@ -2393,8 +2708,8 @@ namespace Lous12.PoliticalWorld
                     return;
                 }
 
-                alliance.kingdoms_hashset.Remove(kingdom);
                 kingdom.allianceLeave(alliance);
+                alliance.kingdoms_hashset.Remove(kingdom);
                 alliance.recalculate();
 
                 if (

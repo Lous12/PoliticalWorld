@@ -160,6 +160,32 @@ namespace Lous12.PoliticalWorld
                 CachedArmyLimitPoliticalDelta.Remove(staleKingdom);
                 CachedArmyLimitPoliticalDeltaUntil.Remove(staleKingdom);
             }
+
+            CleanupExpiredRebellionAttemptTimes();
+        }
+
+        private static void CleanupExpiredRebellionAttemptTimes()
+        {
+            if (NextRebellionAttemptTime.Count == 0)
+            {
+                return;
+            }
+
+            float now = Time.time;
+            List<City> expired = new List<City>();
+
+            foreach (KeyValuePair<City, float> pair in NextRebellionAttemptTime)
+            {
+                if (pair.Key == null || pair.Value <= now)
+                {
+                    expired.Add(pair.Key);
+                }
+            }
+
+            for (int i = 0; i < expired.Count; i++)
+            {
+                NextRebellionAttemptTime.Remove(expired[i]);
+            }
         }
 
         private static void TrackLeaderLongevityFoundation(
@@ -781,6 +807,7 @@ namespace Lous12.PoliticalWorld
                 }
             }
 
+            ProcessSeparatistMovements();
             ProcessRebellions();
         }
 
@@ -1152,6 +1179,8 @@ namespace Lous12.PoliticalWorld
                 10,
                 unstableNeighbours * 3
             );
+
+            target -= GetSeparatistLocalStabilityPenalty(city);
 
             return ClampInt(target, 0, 100);
         }
@@ -2094,6 +2123,27 @@ namespace Lous12.PoliticalWorld
 
         private static void ProcessRebellions()
         {
+            // v1.7.2-dev2: the Political World world-law toggle controls only
+            // this mod's autonomous rebellion generator. Vanilla WorldBox
+            // rebellions remain governed by the vanilla world_law_rebellions.
+            if (!ArePoliticalRebellionsEnabled())
+            {
+                // Drop pending PW-only rolls so re-enabling the law gives each
+                // unstable city a fresh initial delay instead of an instant
+                // rebellion from an already-expired runtime schedule.
+                NextRebellionAttemptTime.Clear();
+                _nextGlobalRebellionAllowedTime = 0f;
+                return;
+            }
+
+            // v1.7.2-dev1: do not let multiple imported/loaded low-stability
+            // cities chain-react immediately just because runtime cooldowns
+            // were empty at world load.
+            if (Time.time < _nextGlobalRebellionAllowedTime)
+            {
+                return;
+            }
+
             List<Kingdom> kingdoms = GetKingdomsSafe();
 
             for (int kingdomIndex = 0;
@@ -2143,16 +2193,30 @@ namespace Lous12.PoliticalWorld
                     int localStability =
                         GetLocalStability(seed);
 
-                    if (localStability > RebellionThreshold)
+                    int rebellionThreshold =
+                        GetSeparatistRebellionThreshold(seed);
+
+                    if (localStability > rebellionThreshold)
                     {
                         continue;
                     }
 
                     float nextAttempt = 0f;
-                    NextRebellionAttemptTime.TryGetValue(
-                        seed,
-                        out nextAttempt
-                    );
+                    bool hasAttemptSchedule =
+                        NextRebellionAttemptTime.TryGetValue(
+                            seed,
+                            out nextAttempt
+                        );
+
+                    if (!hasAttemptSchedule)
+                    {
+                        NextRebellionAttemptTime[seed] =
+                            Time.time + UnityEngine.Random.Range(
+                                RebellionInitialAttemptDelayMin,
+                                RebellionInitialAttemptDelayMax
+                            );
+                        continue;
+                    }
 
                     if (Time.time < nextAttempt)
                     {
@@ -2169,6 +2233,7 @@ namespace Lous12.PoliticalWorld
                         localStability,
                         nationalStability
                     );
+                    chance = ApplySeparatistRebellionPressure(seed, chance);
 
                     if (UnityEngine.Random.value > chance)
                     {
@@ -2241,12 +2306,56 @@ namespace Lous12.PoliticalWorld
                         90f
                     );
 
-                    // Одно восстание за один проход достаточно:
-                    // следующий кризис получит собственный шанс
-                    // на следующем тике системы.
-                    break;
+                    // INTERACTION FIX1: this is a structural world mutation.
+                    // The old code used `break`, which stopped only the city loop
+                    // and then continued iterating the pre-rebellion kingdom
+                    // snapshot. That contradicted the comment and allowed more
+                    // simulation work against a world whose topology had changed.
+                    BeginWorldTopologySettle(
+                        "rebellion:" + GetStableObjectIdentity(rebelKingdom)
+                    );
+                    _nextGlobalRebellionAllowedTime =
+                        Time.time + RebellionGlobalCooldown;
+
+                    // Exactly one successful rebellion per stability pass, with
+                    // a global cooldown before another independent revolt.
+                    return;
                 }
             }
+        }
+
+        private static void BeginWorldTopologySettle(string reason)
+        {
+            float until = Time.unscaledTime + WorldTopologySettleSeconds;
+            if (until > WorldTopologySettleUntil)
+            {
+                WorldTopologySettleUntil = until;
+            }
+
+            WorldTopologySettleReason = reason ?? "world-structure-change";
+
+            // These caches are derived from object ownership/topology and are
+            // cheap to rebuild. Clearing them prevents stale Kingdom/City
+            // references from crossing the vanilla split boundary.
+            LastKnownKingdomCourses.Clear();
+            FastKingdomCourseCache.Clear();
+            CachedArmyLimitPoliticalDelta.Clear();
+            CachedArmyLimitPoliticalDeltaUntil.Clear();
+
+            // A party update pass stores a snapshot of Kingdom references. A
+            // rebellion invalidates that snapshot immediately.
+            ResetPoliticalPartyUpdatePass();
+
+            LogInfo(
+                "[PW-TOPOLOGY-GUARD] settle started reason=" +
+                WorldTopologySettleReason +
+                " seconds=" + WorldTopologySettleSeconds
+            );
+        }
+
+        private static bool IsWorldTopologySettling()
+        {
+            return Time.unscaledTime < WorldTopologySettleUntil;
         }
 
         private static float CalculateRebellionChance(
@@ -2299,6 +2408,11 @@ namespace Lous12.PoliticalWorld
             int nationalStability
         )
         {
+            if (!ArePoliticalRebellionsEnabled())
+            {
+                return LM.Get("ukiol_rebellion_risk_disabled");
+            }
+
             Kingdom kingdom = GetKingdomFromObject(city);
 
             if (
@@ -2320,7 +2434,10 @@ namespace Lous12.PoliticalWorld
                 return LM.Get("ukiol_rebellion_risk_capital");
             }
 
-            if (localStability > RebellionThreshold)
+            int rebellionThreshold =
+                GetSeparatistRebellionThreshold(city);
+
+            if (localStability > rebellionThreshold)
             {
                 return LM.Get("ukiol_rebellion_risk_low");
             }
@@ -2329,6 +2446,7 @@ namespace Lous12.PoliticalWorld
                 localStability,
                 nationalStability
             );
+            chance = ApplySeparatistRebellionPressure(city, chance);
 
             if (chance >= 0.60f)
             {
@@ -2362,6 +2480,11 @@ namespace Lous12.PoliticalWorld
             int nationalStability
         )
         {
+            if (!ArePoliticalRebellionsEnabled())
+            {
+                return "#AAAAAA";
+            }
+
             Kingdom kingdom = GetKingdomFromObject(city);
 
             if (
@@ -2387,8 +2510,9 @@ namespace Lous12.PoliticalWorld
                 localStability,
                 nationalStability
             );
+            chance = ApplySeparatistRebellionPressure(city, chance);
 
-            if (localStability > RebellionThreshold)
+            if (localStability > GetSeparatistRebellionThreshold(city))
             {
                 return "#43FF43";
             }
@@ -2606,8 +2730,7 @@ namespace Lous12.PoliticalWorld
                         joined.Contains(candidate) ||
                         GetKingdomFromObject(candidate) !=
                             originalKingdom ||
-                        GetLocalStability(candidate) >
-                            RebellionJoinThreshold
+                        !CanCityJoinSeparatistRebellion(candidate)
                     )
                     {
                         continue;

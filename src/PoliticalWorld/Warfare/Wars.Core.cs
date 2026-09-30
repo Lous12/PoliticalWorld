@@ -81,10 +81,32 @@ namespace Lous12.PoliticalWorld
                 try
                 {
                     _allowPoliticalWarStart = true;
-                    pending.StartMethod.Invoke(
+                    object vanillaWar = pending.StartMethod.Invoke(
                         pending.Diplomacy,
                         pending.Args
                     );
+
+                    // startWar() returns the created vanilla War on the
+                    // supported WorldBox build. Do not apply Political World
+                    // exhaustion/state/events if vanilla rejected the request.
+                    if (
+                        vanillaWar == null &&
+                        !IsKingdomPairAtWarSafe(
+                            pending.Attacker,
+                            pending.Defender
+                        )
+                    )
+                    {
+                        LogWarning(
+                            "Delayed vanilla war start was rejected for " +
+                            GetWorldObjectDisplayName(pending.Attacker) +
+                            " / " +
+                            GetWorldObjectDisplayName(pending.Defender) + "."
+                        );
+                        WarPairNextRuntimeStartTime[key] =
+                            Time.time + 5f;
+                        continue;
+                    }
 
                     WarPairNextRuntimeStartTime[key] =
                         Time.time + 2f;
@@ -127,6 +149,47 @@ namespace Lous12.PoliticalWorld
                         ActivateInternationalBlocCollectiveDefense(pending);
                     }
 
+                    List<string> warCauses = new List<string>();
+                    if (pending.FromDiplomaticCrisis)
+                    {
+                        warCauses.Add(
+                            LM.Get(
+                                "ukiol_chronicle_detail_war_after_ultimatum"
+                            )
+                        );
+                    }
+                    else if (pending.SurpriseAttack)
+                    {
+                        warCauses.Add(
+                            LM.Get(
+                                "ukiol_chronicle_detail_war_surprise_attack"
+                            )
+                        );
+                    }
+                    else if (pending.FromBlocCollectiveDefense)
+                    {
+                        warCauses.Add(
+                            LM.Get(
+                                "ukiol_chronicle_detail_war_collective_defense"
+                            )
+                        );
+                    }
+                    else
+                    {
+                        warCauses.Add(
+                            LM.Get(
+                                "ukiol_chronicle_detail_war_declaration"
+                            )
+                        );
+                    }
+
+                    warCauses.Add(
+                        string.Format(
+                            LM.Get("ukiol_chronicle_detail_war_casus_belli"),
+                            GetCasusBelliName(pending.CasusBelli)
+                        )
+                    );
+
                     PublishPoliticalEvent(
                         string.Format(
                             LM.Get("ukiol_event_war_hostilities_began"),
@@ -138,7 +201,41 @@ namespace Lous12.PoliticalWorld
                         GetLivingRuler(pending.Attacker),
                         MilitaristIconPath,
                         "war_hostilities_" + key,
-                        15f
+                        15f,
+                        warCauses,
+                        new List<string>
+                        {
+                            string.Format(
+                                LM.Get(
+                                    "ukiol_chronicle_detail_war_exhaustion"
+                                ),
+                                GetWorldObjectDisplayName(pending.Attacker),
+                                ClampInt(
+                                    GetKingdomIntData(
+                                        pending.Attacker,
+                                        WarExhaustionDataKey,
+                                        0
+                                    ),
+                                    0,
+                                    100
+                                )
+                            ),
+                            string.Format(
+                                LM.Get(
+                                    "ukiol_chronicle_detail_war_exhaustion"
+                                ),
+                                GetWorldObjectDisplayName(pending.Defender),
+                                ClampInt(
+                                    GetKingdomIntData(
+                                        pending.Defender,
+                                        WarExhaustionDataKey,
+                                        0
+                                    ),
+                                    0,
+                                    100
+                                )
+                            )
+                        }
                     );
                 }
                 catch (Exception exception)
@@ -198,6 +295,19 @@ namespace Lous12.PoliticalWorld
 
                 FinalizeActivePoliticalWar(first, second);
 
+                PoliticalWorldAPI.InternalEmitCoreEvent(
+                    PoliticalWorldAPI.Events.WarEnded,
+                    first,
+                    newValue: GetWorldObjectDisplayName(second),
+                    category: "war",
+                    year: GetWorldYearSafe(),
+                    ideologyId: GetStateIdeology(first) ?? "",
+                    currentId: GetStateIdeologyCurrent(first) ?? "",
+                    governmentId: GetGovernmentPublicId(first) ?? "",
+                    targetKingdom: second,
+                    warSource: "peace"
+                );
+
                 PublishPoliticalEvent(
                     string.Format(
                         LM.Get("ukiol_event_war_truce_signed"),
@@ -210,7 +320,18 @@ namespace Lous12.PoliticalWorld
                     null,
                     DiplomatIconPath,
                     "war_truce_" + GetWarPairKey(first, second),
-                    20f
+                    20f,
+                    new List<string>
+                    {
+                        LM.Get("ukiol_chronicle_detail_truce_war_ended")
+                    },
+                    new List<string>
+                    {
+                        string.Format(
+                            LM.Get("ukiol_chronicle_detail_truce_until"),
+                            untilYear
+                        )
+                    }
                 );
             }
             catch
@@ -222,6 +343,8 @@ namespace Lous12.PoliticalWorld
 
         private static void UpdateWarDiplomacyFoundation()
         {
+            CleanupExpiredWarRuntimeCooldowns();
+
             int currentYear = GetWorldYearSafe();
             List<Kingdom> kingdoms = GetKingdomsSafe();
 
@@ -308,6 +431,51 @@ namespace Lous12.PoliticalWorld
             }
 
             UpdateActiveWarPeaceLogic(currentYear);
+        }
+
+        private static void CleanupExpiredWarRuntimeCooldowns()
+        {
+            float now = Time.time;
+
+            if (WarPairNextRuntimeStartTime.Count > 0)
+            {
+                List<string> expired = new List<string>();
+                foreach (
+                    KeyValuePair<string, float> pair
+                    in WarPairNextRuntimeStartTime
+                )
+                {
+                    if (pair.Value <= now)
+                    {
+                        expired.Add(pair.Key);
+                    }
+                }
+
+                for (int i = 0; i < expired.Count; i++)
+                {
+                    WarPairNextRuntimeStartTime.Remove(expired[i]);
+                }
+            }
+
+            if (WarPairNextPeaceAttemptTime.Count > 0)
+            {
+                List<string> expired = new List<string>();
+                foreach (
+                    KeyValuePair<string, float> pair
+                    in WarPairNextPeaceAttemptTime
+                )
+                {
+                    if (pair.Value <= now)
+                    {
+                        expired.Add(pair.Key);
+                    }
+                }
+
+                for (int i = 0; i < expired.Count; i++)
+                {
+                    WarPairNextPeaceAttemptTime.Remove(expired[i]);
+                }
+            }
         }
 
         private static void InitializeActivePoliticalWar(

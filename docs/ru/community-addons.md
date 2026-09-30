@@ -43,6 +43,6 @@ https://github.com/Lous12/PoliticalWorld/discussions/categories/addon-testing
 ## Для авторов
 
 - [Первый аддон за 10 минут](GETTING_STARTED.md)
-- [Справочник API 1.9](API_REFERENCE_1_9.md)
+- [Справочник API 1.19](API_REFERENCE_1_19.md)
 - [Разработка с ИИ](using-ai.md)
 - [Что можно создавать?](what-you-can-build.md)

@@ -20,7 +20,7 @@
 
 | For players | For creators |
 |---|---|
-| Political ideologies and parties | Public API 1.9 |
+| Political ideologies and parties | Public API 1.19 |
 | Governments and political systems | Addon registration |
 | Crises, coups and revolutions | Data, tags and diagnostics |
 | Blocs, summits and Political Map | Event Bus, Actions, Rare Events |
@@ -37,7 +37,7 @@
 ### 🧩 I want to build an addon
 - [Getting Started](en/GETTING_STARTED.md)
 - [Framework Vision](en/FRAMEWORK_VISION.md)
-- [API 1.9 quick reference](en/API_REFERENCE_1_9.md)
+- [API 1.19 quick reference](en/API_REFERENCE_1_19.md)
 
 ### 🌍 Я хочу читать по-русски
 - [Документация на русском](ru/README.md)
@@ -54,3 +54,8 @@ Use these assets across GitHub, Pages and community posts:
 - [`assets/social-preview.svg`](assets/social-preview.svg)
 
 They are simple SVG files, easy to edit later if you want a new color palette or wording.
+
+
+## Discord
+
+Political World Community: https://discord.gg/kYH5GadndE

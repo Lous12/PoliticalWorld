@@ -25,6 +25,22 @@ namespace Lous12.PoliticalWorld
                 return;
             }
 
+            object diplomacy = GetMemberValue(
+                World.world,
+                "diplomacy",
+                "_diplomacy"
+            );
+
+            if (diplomacy == null)
+            {
+                return;
+            }
+
+            // Harmony patches are installed on the DiplomacyManager type, but
+            // the concrete manager instance is owned by one world/save. Always
+            // refresh it before the fast installed-patches return path.
+            _patchedDiplomacyInstance = diplomacy;
+
             if (
                 _warStartPatchInstalled &&
                 _warPeacePatchInstalled
@@ -40,60 +56,12 @@ namespace Lous12.PoliticalWorld
 
             _nextWarPatchAttemptTime = Time.unscaledTime + 5f;
 
-            object diplomacy = GetMemberValue(
-                World.world,
-                "diplomacy",
-                "_diplomacy"
-            );
-
-            if (diplomacy == null)
-            {
-                return;
-            }
-
-            _patchedDiplomacyInstance = diplomacy;
-
             if (!_warStartPatchInstalled)
             {
-                MethodInfo startWar = FindWarStartMethod(
-                    diplomacy.GetType()
-                );
+                _warStartPatchInstalled =
+                    TryInstallWarStartPatches(diplomacy.GetType());
 
-                if (startWar != null)
-                {
-                    MethodInfo prefix = typeof(Main).GetMethod(
-                        nameof(WarStartPrefix),
-                        BindingFlags.Static |
-                        BindingFlags.NonPublic
-                    );
-
-                    if (prefix != null)
-                    {
-                        try
-                        {
-                            _harmony.Patch(
-                                startWar,
-                                prefix: new HarmonyMethod(prefix)
-                            );
-                            _patchedWarStartMethod = startWar;
-                            _warStartPatchInstalled = true;
-                            LogInfo(
-                                "War diplomacy patch: intercepted " +
-                                diplomacy.GetType().Name + "." +
-                                startWar.Name + " params=" +
-                                startWar.GetParameters().Length
-                            );
-                        }
-                        catch (Exception exception)
-                        {
-                            LogWarning(
-                                "War start patch failed: " +
-                                exception.Message
-                            );
-                        }
-                    }
-                }
-                else
+                if (!_warStartPatchInstalled)
                 {
                     LogWarDiplomacyCandidates(diplomacy.GetType());
                 }
@@ -104,6 +72,97 @@ namespace Lous12.PoliticalWorld
                 _warPeacePatchInstalled =
                     TryInstallWarPeacePatches(diplomacy.GetType());
             }
+        }
+
+        private static bool TryInstallWarStartPatches(Type diplomacyType)
+        {
+            if (_harmony == null || diplomacyType == null)
+            {
+                return false;
+            }
+
+            MethodInfo prefix = typeof(Main).GetMethod(
+                nameof(WarStartPrefix),
+                BindingFlags.Static | BindingFlags.NonPublic
+            );
+            MethodInfo postfix = typeof(Main).GetMethod(
+                nameof(WarStartPostfix),
+                BindingFlags.Static | BindingFlags.NonPublic
+            );
+            if (prefix == null || postfix == null)
+            {
+                return false;
+            }
+
+            MethodInfo[] methods = diplomacyType.GetMethods(MemberFlags);
+            bool installedAny = false;
+            MethodInfo preferred = null;
+
+            for (int i = 0; i < methods.Length; i++)
+            {
+                MethodInfo method = methods[i];
+                if (method == null || method.Name != "startWar")
+                {
+                    continue;
+                }
+
+                ParameterInfo[] parameters = method.GetParameters();
+                if (
+                    parameters.Length < 2 ||
+                    !typeof(Kingdom).IsAssignableFrom(parameters[0].ParameterType) ||
+                    !typeof(Kingdom).IsAssignableFrom(parameters[1].ParameterType)
+                )
+                {
+                    continue;
+                }
+
+                string patchKey =
+                    diplomacyType.FullName + "|" +
+                    method.Name + "|" +
+                    parameters.Length + "|" +
+                    method.ToString();
+
+                if (!PatchedWarStartMethods.Contains(patchKey))
+                {
+                    try
+                    {
+                        _harmony.Patch(
+                            method,
+                            prefix: new HarmonyMethod(prefix),
+                            postfix: new HarmonyMethod(postfix)
+                        );
+                        PatchedWarStartMethods.Add(patchKey);
+                        LogInfo(
+                            "War diplomacy patch: intercepted " +
+                            diplomacyType.Name + "." +
+                            method.Name + " params=" +
+                            parameters.Length
+                        );
+                    }
+                    catch (Exception exception)
+                    {
+                        LogWarning(
+                            "War start overload patch failed (params=" +
+                            parameters.Length + "): " +
+                            exception.Message
+                        );
+                        continue;
+                    }
+                }
+
+                installedAny = true;
+                if (preferred == null || parameters.Length == 4)
+                {
+                    preferred = method;
+                }
+            }
+
+            if (preferred != null)
+            {
+                _patchedWarStartMethod = preferred;
+            }
+
+            return installedAny;
         }
 
         private static MethodInfo FindWarStartMethod(Type diplomacyType)
@@ -288,7 +347,8 @@ namespace Lous12.PoliticalWorld
 
         private static bool WarStartPrefix(
             object __instance,
-            object[] __args
+            object[] __args,
+            MethodBase __originalMethod
         )
         {
             try
@@ -296,6 +356,24 @@ namespace Lous12.PoliticalWorld
                 if (_allowPoliticalWarStart)
                 {
                     return true;
+                }
+
+                // The player used vanilla's force-war power. Do not turn an
+                // explicit god-power order into a diplomatic crisis or a nice
+                // little concession agreement. They clicked WAR; give WAR.
+                if (
+                    IsForcedPlayerWarType(__args) ||
+                    IsExplicitPlayerWarPowerCall()
+                )
+                {
+                    return true;
+                }
+
+                // Native pause must also cover Harmony entry points, which can
+                // be reached independently of Political World's Update loop.
+                if (IsPoliticalSimulationPaused())
+                {
+                    return false;
                 }
 
                 Kingdom attacker;
@@ -410,7 +488,9 @@ namespace Lous12.PoliticalWorld
                     surprise.Attacker = attacker;
                     surprise.Defender = defender;
                     surprise.Diplomacy = __instance;
-                    surprise.StartMethod = _patchedWarStartMethod;
+                    surprise.StartMethod =
+                        (__originalMethod as MethodInfo) ??
+                        _patchedWarStartMethod;
                     surprise.Args = CloneObjectArray(__args);
                     surprise.ExecuteAt = Time.time + 0.65f;
                     surprise.CasusBelli = casusBelli;
@@ -457,7 +537,9 @@ namespace Lous12.PoliticalWorld
                 crisis.Attacker = attacker;
                 crisis.Defender = defender;
                 crisis.Diplomacy = __instance;
-                crisis.StartMethod = _patchedWarStartMethod;
+                crisis.StartMethod =
+                    (__originalMethod as MethodInfo) ??
+                    _patchedWarStartMethod;
                 crisis.Args = CloneObjectArray(__args);
                 crisis.PairKey = pairKey;
                 crisis.CasusBelli = casusBelli;
@@ -601,35 +683,11 @@ namespace Lous12.PoliticalWorld
                         20f
                     );
 
-                    if (ShouldAttackerBackDownAfterRefusal(crisis))
-                    {
-                        PendingDiplomaticCrises.Remove(pairKey);
-                        SetNationalStability(
-                            crisis.Attacker,
-                            GetNationalStability(crisis.Attacker) - 2
-                        );
-                        ChangeDiplomaticReputation(crisis.Attacker, -3);
-                        ClearDiplomaticCrisisData(crisis.Attacker);
-                        ClearDiplomaticCrisisData(crisis.Defender);
-                        WarPairNextRuntimeStartTime[pairKey] =
-                            Time.time + DiplomaticCrisisRuntimeCooldownSeconds;
-
-                        PublishPoliticalEvent(
-                            string.Format(
-                                LM.Get("ukiol_event_diplomatic_backdown"),
-                                GetWorldObjectDisplayName(crisis.Attacker),
-                                GetWorldObjectDisplayName(crisis.Defender)
-                            ),
-                            crisis.Attacker,
-                            null,
-                            GetLivingRuler(crisis.Attacker),
-                            DiplomatIconPath,
-                            "diplomatic_backdown_" + pairKey,
-                            25f
-                        );
-                        continue;
-                    }
-
+                    // Intended declaration flow: once the defender rejects
+                    // the ultimatum, the diplomatic crisis escalates into war.
+                    // Do not roll a second attacker back-down chance here: it
+                    // made an explicit declaration sometimes disappear after a
+                    // visible refusal, which looked like a broken war tool.
                     PendingDiplomaticCrises.Remove(pairKey);
                     ScheduleWarFromDiplomaticCrisis(crisis);
                 }
@@ -691,7 +749,27 @@ namespace Lous12.PoliticalWorld
                 GetLivingRuler(crisis.Attacker),
                 MilitaristIconPath,
                 "diplomatic_escalation_" + crisis.PairKey,
-                20f
+                20f,
+                new List<string>
+                {
+                    string.Format(
+                        LM.Get(
+                            "ukiol_chronicle_detail_war_rejected_demand"
+                        ),
+                        GetDiplomaticDemandName(crisis.Demand)
+                    ),
+                    string.Format(
+                        LM.Get("ukiol_chronicle_detail_war_casus_belli"),
+                        GetCasusBelliName(crisis.CasusBelli)
+                    )
+                },
+                new List<string>
+                {
+                    string.Format(
+                        LM.Get("ukiol_chronicle_detail_war_preparation"),
+                        GetWorldObjectDisplayName(crisis.Defender)
+                    )
+                }
             );
         }
 
@@ -1219,17 +1297,8 @@ namespace Lous12.PoliticalWorld
             int stored = GetKingdomIntData(
                 kingdom,
                 DiplomaticReputationDataKey,
-                -1
+                50
             );
-            if (stored < 0)
-            {
-                stored = 50;
-                SetKingdomIntData(
-                    kingdom,
-                    DiplomaticReputationDataKey,
-                    stored
-                );
-            }
             return ClampInt(stored, 0, 100);
         }
 
