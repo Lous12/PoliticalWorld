@@ -31,9 +31,6 @@ Political APIs remain fully supported, but creators are **not expected to limit 
 - [Using AI for development](using-ai.md)
 - [Common mistakes](common-mistakes.md)
 
-Older API references remain useful for historical/version-specific behavior:
-- [API 1.6 reference](API_REFERENCE_1_6.md)
-
 ## Main rule
 
 Third-party addons should work through `PoliticalWorldAPI`.
@@ -47,7 +44,6 @@ If a first-party addon needs an internal shortcut, the preferred response is to 
 Prefer registration and events over continuous polling.
 
 Political World is intentionally event-driven and aggregate-first. Addons should avoid scanning the whole world every frame when an event, Action, Condition, Rare Event or cached addon state can express the same behavior.
-
 
 ## Discord
 
