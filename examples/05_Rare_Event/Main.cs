@@ -6,15 +6,24 @@ namespace Lous12.PWSDK.Example05
     public class Main : BasicMod<Main>
     {
         private const string AddonId = "Lous12.PWSDK.Example05";
+
         protected override void OnModLoad()
         {
+            // Minimum for this example. Current PoliticalWorldAPI is newer.
             if (!PoliticalWorldAPI.IsCompatible(1, 6)) return;
+
             if (!PoliticalWorldAPI.RegisterAddon(new PoliticalWorldAPI.AddonDefinition
             {
-                Id = AddonId, Name = "PW SDK Example 05", Version = "1.0.0", Author = "Lous12"
+                Id = AddonId,
+                Name = "PW SDK Example 05",
+                Version = "1.0.0",
+                Author = "Lous12",
+                RequiredApiMajor = 1,
+                RequiredApiMinor = 6
             })) return;
 
-            PoliticalWorldAPI.RegisterRarePoliticalEvent(AddonId,
+            PoliticalWorldAPI.RegisterRarePoliticalEvent(
+                AddonId,
                 new PoliticalWorldAPI.RarePoliticalEventDefinition
                 {
                     Id = AddonId + ".low_stability_warning",
@@ -28,8 +37,11 @@ namespace Lous12.PWSDK.Example05
                         kingdom,
                         "Political tension is rising.",
                         AddonId + ".warning",
-                        2f)
-                });
+                        2f
+                    )
+                }
+            );
+
             PoliticalWorldAPI.LogDiagnosticsReport(AddonId);
         }
     }

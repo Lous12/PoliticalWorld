@@ -1,28 +1,93 @@
 # Частые ошибки
 
-## Аддон лежит внутри PoliticalWorld
-NML рекурсивно собирает `.cs`, поэтому вы получите конфликт типов/классов. Аддон должен быть отдельной папкой рядом.
+## Аддон лежит внутри папки PoliticalWorld
 
-## Забыт Dependencies
-В `mod.json` аддона должно быть `"Dependencies": ["Lous12.PoliticalWorld"]`, иначе порядок компиляции/assembly reference не гарантирован.
+NeoModLoader рекурсивно компилирует `.cs` внутри папки мода. Аддон должен лежать отдельной sibling-папкой.
 
-## Используется старое имя
-Новая публичная идентичность — `Lous12.PoliticalWorld` и namespace `Lous12.PoliticalWorld`. `ukiol_*` внутри core — только legacy save/content IDs.
+## Забыта dependency
 
-## Контентный ID не принадлежит аддону
-Используйте `AddonId + ".something"`. Validation специально отклоняет чужие ID.
+PW-аддон должен объявить:
+
+```json
+"Dependencies": ["Lous12.PoliticalWorld"]
+```
+
+Иначе порядок компиляции/загрузки и assembly reference не гарантированы.
+
+## Текущая API-версия считается обязательной минимальной
+
+`1.19.0` — current API, а не автоматический minimum requirement.
+
+Если аддон использует только более старые контракты, честный `IsCompatible(1, x)` с меньшим minor — нормально.
 
 ## RegisterAddon не вызван первым
-Сначала зарегистрируйте аддон, потом контент и подписки.
 
-## Постоянный Update сканирует мир
-Для политических переходов используйте Event Bus, для редких kingdom-level эффектов — Rare Political Event Registry.
+Сначала зарегистрируйте аддон, затем owned content, custom events, UI, tags/data и subscriptions.
 
-## Общий тег используется как приватное состояние
-Для внутреннего состояния используйте `AddAddonKingdomTag` и addon data.
+## ID контента/событий не namespaced
 
-## Мод лезет в Main/ScenarioBridge
-Это internal implementation. Если публичной возможности нет — зафиксируйте missing capability.
+Используйте формат вроде:
+
+```text
+YourName.MyAddon.feature
+YourName.MyAddon.event_name
+```
+
+Validation специально не даёт одному аддону регистрировать чужой ID.
+
+## Хардкодятся legacy `ukiol_*`
+
+Часть старых ID уже является частью save compatibility. В аддоне используйте публичные constants/accessors, если они есть, а не копируйте внутренние ID из core source.
+
+## Каждый кадр сканируется весь мир
+
+Используйте:
+
+- Event Bus для переходов;
+- Rare Political Events для редких политических эффектов;
+- `WorldQuery` для явных capped snapshots;
+- cached addon state, когда это возможно.
+
+Не заменяйте один отсутствующий event бесконечным full-world scan.
+
+## WorldQuery.IsReady воспринимается как «весь save уже точно полностью восстановлен»
+
+Публичный lifecycle говорит, что world/query surface доступен. Сложная restore-логика аддона всё равно должна осторожно относиться к load transition и реагировать на lifecycle events, а не соревноваться с инициализацией мира.
+
+## Shared tags используются как приватное состояние
+
+Для private state используйте `PoliticalWorldAPI.Tags` / addon-owned data. Shared kingdom tags нужны для осознанного interop.
+
+## Сохраняются live object references
+
+Runtime Actor/City/Kingdom reference — не persistent ID. Сохраняйте стабильные данные и после load заново находите живые объекты при необходимости.
+
+## Схема сохранённых данных меняется без migration
+
+Если меняется смысл/структура addon-owned data, используйте `PoliticalWorldAPI.Migrations`, а не тихое переосмысление старых сейвов.
+
+## Harmony-патчится окно PW ради UI аддона
+
+Сначала проверьте публичные UI surfaces:
+
+- inspector sections;
+- context actions;
+- hosted kingdom/settlement Politics pages.
+
+Если public host реально не умеет нужное — запросите capability.
+
+## Аддон лезет в Main/ScenarioBridge
+
+Это implementation details, а не addon contract.
+
+Если Public API чего-то не умеет, зафиксируйте/request capability вместо reflection glue вокруг internals.
+
+## ForceWar используется как обычный способ начать войну
+
+`Warfare.TryDeclareWar` проходит через diplomacy interception PW. `ForceWar` намеренно его обходит.
+
+Force path нужен только когда обход обычных правил действительно является функцией.
 
 ## После ошибки присылается только скрин
-Лучше полный `Player.log` или хотя бы полный compile error: номер файла, строка, код ошибки, текст.
+
+Для нормального bug report нужен полный compile/runtime error или `Player.log`, версии/build и точный repro.

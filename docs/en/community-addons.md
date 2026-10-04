@@ -1,8 +1,8 @@
 # Community Addons
 
-Political World is being developed so other creators can build projects on top of its Public API.
+Political World is open for community addons, forks and contributions built on top of its Public API.
 
-This is the source Markdown version of the catalog. The friendlier website version is here:
+This is the source Markdown version of the catalog. The friendlier website version is here:  
 **https://lous12.github.io/PoliticalWorld/en/community-addons.html**
 
 ## Verified addons
@@ -32,11 +32,13 @@ Please provide:
 - short description;
 - download link;
 - source link if available;
-- required Political World version;
-- required `PoliticalWorldAPI` version (current public version: **1.9**);
+- Political World version tested;
+- PoliticalWorldAPI version tested (current public version: **1.19.0**);
+- minimum PoliticalWorldAPI version required by the addon;
 - other dependencies;
 - whether the addon uses only the Public API;
-- the main feature that should be tested.
+- the main feature(s) that should be tested;
+- whether save/load needs to be part of the test.
 
 Small projects are welcome too.
 
@@ -46,3 +48,4 @@ Small projects are welcome too.
 - [API 1.19 Reference](API_REFERENCE_1_19.md)
 - [Using AI](using-ai.md)
 - [What can you build?](what-you-can-build.md)
+- [`examples/` index](../../examples/README.md)

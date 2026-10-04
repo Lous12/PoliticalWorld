@@ -3,14 +3,15 @@
 </p>
 
 <h1 align="center">Political World</h1>
-<p align="center"><strong>Politics mod for WorldBox • Public API • Addon Framework</strong></p>
+<p align="center"><strong>Politics mod for WorldBox • Public API • Open development</strong></p>
 
 <p align="center">
   <a href="README_RU.md">Русский</a> ·
   <a href="https://lous12.github.io/PoliticalWorld/">Website</a> ·
   <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3780484869">Steam Workshop</a> ·
   <a href="https://discord.gg/kYH5GadndE">Discord</a> ·
-  <a href="https://github.com/Lous12/PoliticalWorld/discussions">Discussions</a>
+  <a href="https://github.com/Lous12/PoliticalWorld/issues">Issues</a> ·
+  <a href="https://github.com/Lous12/PoliticalWorld/pulls">Pull Requests</a>
 </p>
 
 <p align="center">
@@ -31,7 +32,8 @@ Political World is a politics simulation mod for WorldBox and an addon framework
 - **Public API:** 1.19.0
 - **Target game build:** 719
 - **NeoModLoader:** 1.2.0.1
-- **Current focus:** 1.12 planning and post-1.11 maintenance
+- **Development status:** active large feature development is currently on a break
+- **Current focus:** maintenance, critical fixes, repository cleanup, documentation and community development
 
 ## 1.11 highlights
 
@@ -51,9 +53,12 @@ Community credits for 1.11: **@Asriel**, **@Mauro**, **@Mars**.
 - [Discord](https://discord.gg/kYH5GadndE)
 - [Getting Started](docs/en/GETTING_STARTED.md)
 - [API 1.19 Reference](docs/en/API_REFERENCE_1_19.md)
-- [Framework Vision](docs/en/FRAMEWORK_VISION.md)
+- [Examples](examples/README.md)
+- [Addon template](templates/PoliticalWorld-Addon-Template)
 - [Community Addons](https://lous12.github.io/PoliticalWorld/en/community-addons.html)
-- [Discussions](https://github.com/Lous12/PoliticalWorld/discussions)
+- [Issues](https://github.com/Lous12/PoliticalWorld/issues)
+- [Pull Requests](https://github.com/Lous12/PoliticalWorld/pulls)
+- [Forks](https://github.com/Lous12/PoliticalWorld/forks)
 
 ## For players
 
@@ -63,31 +68,41 @@ Political World adds ideologies, parties, governments, elections, political stab
 
 PoliticalWorldAPI 1.19 includes addon registration, capability discovery, localization fallback, data and tags, event hooks, rare political events, actions, ideology and government registries, party and country access, warfare helpers, UI integration, world lifecycle access, release helpers and diagnostics.
 
-The public API is split across partial source files under `src/PoliticalWorld/API/`.
+The public API is split across partial source files under `src/PoliticalWorld/API/`. The source is the canonical contract when prose documentation is incomplete.
+
+Start with:
+
+- [AI_START_HERE.md](AI_START_HERE.md)
+- [AGENTS.md](AGENTS.md)
+- [API source map](src/PoliticalWorld/API/README.md)
+- [Examples](examples/README.md)
 
 ## Open source, forks and contributions
 
-Political World is open source under the MIT License. Forks, patches, PRs, experiments and AI-assisted contributions are welcome.
+Political World is open source under the MIT License. Forks, focused patches, PRs, experiments, documentation fixes and AI-assisted contributions are welcome.
 
-Core contributors should start with:
+Core contributors should read:
 
 - [AGENTS.md](AGENTS.md)
 - [ARCHITECTURE.md](ARCHITECTURE.md)
 - [KNOWN_RISKS.md](KNOWN_RISKS.md)
 - [DEVELOPMENT.md](DEVELOPMENT.md)
 
-Forks should clearly identify themselves as unofficial and keep the original MIT notice.
+Forks should clearly identify themselves as unofficial and keep the original MIT notice. Official Political World releases still come from the main project maintained by Lous12.
 
 ## Community
 
-Use Discord for general discussion, testing and suggestions. GitHub Discussions remains the best place for API questions, addon testing and longer technical threads.
+Discord is the easiest place for normal discussion, testing, ideas and addon experiments. GitHub Issues/PRs are better for reproducible bugs and code changes.
 
 ## Support the project
 
-Political World, the Public API and documentation remain free. Optional support:
+Political World, the Public API, source code and documentation remain free. Support is completely optional.
 
 - [DonationAlerts](https://www.donationalerts.com/r/lous12)
-- [DALink](https://dalink.to/lous12)
+- **USDT — TRC20 / TRON:** `TAooa2bwstvhrSPnTaDZjBNGHZ1j5zDB4p`
+- **USDT — TON:** `UQCppGv_A8uf07Ws_zyPw_U7XRnhafM2TDd1ABR1DQrfGA73`
+
+> Check the network before sending. USDT on TRC20/TRON and USDT on TON are different networks.
 
 ## License
 

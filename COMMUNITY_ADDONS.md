@@ -17,16 +17,17 @@ Small projects are explicitly welcome. A one-ideology addon, one-event addon or 
 
 ## Submit an addon
 
-Open an Issue or Pull Request with:
+The preferred route is **GitHub Discussions → Addon Testing**. The form asks for:
 
-- addon name;
-- author;
+- addon name and author;
 - short description;
 - source/download link;
-- Political World version;
-- minimum PoliticalWorldAPI version;
+- Political World version tested;
+- PoliticalWorldAPI version tested and the minimum API version required;
 - other dependencies;
 - whether it uses only the public API;
-- a short test checklist.
+- a short runtime test checklist.
 
 Public-API-only addons are preferred because they are more likely to survive internal Political World refactors.
+
+If the public API is missing something important, open an API capability request rather than quietly depending on private core classes.

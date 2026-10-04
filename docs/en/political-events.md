@@ -1,10 +1,10 @@
-# Event Bus and Rare Political Events — API 1.6
+# Event Bus, custom events and Rare Political Events
 
-## Why
+Political World exposes one event bus for core transitions, addon events and world lifecycle notifications.
 
-An addon should not scan every kingdom every frame just to detect political changes. Political World emits events from existing state transitions and provides a rare-event registry inside the existing yearly political pipeline.
+Use events when possible instead of scanning every kingdom/city every frame.
 
-## Core Event Bus
+## Subscribe to a core event
 
 ```csharp
 PoliticalWorldAPI.Subscribe(
@@ -14,31 +14,91 @@ PoliticalWorldAPI.Subscribe(
 );
 ```
 
-The handler receives `PoliticalEventData`: `EventId`, `Kingdom`, old/new values, PartyId, Actor, names, SourceAddonId, Category, Year, Text, and EventKey.
+The callback receives `PoliticalEventData`.
 
-Known API 1.6 events:
+Useful fields include:
 
-- `kingdom.ideology.changed`
-- `kingdom.current.changed`
-- `kingdom.government.changed`
-- `party.created`, `party.activated`, `party.deactivated`, `party.renamed`
-- `party.ideology.changed`, `party.leader.changed`, `party.radicalism.changed`, `party.support.changed`
-- `kingdom.ruling-party.changed`
-- `kingdom.ruler.changed`
-- `kingdom.election.finished`
-- `kingdom.crisis.started`, `kingdom.crisis.ended`
-- `kingdom.leadership-crisis.started`, `kingdom.leadership-crisis.resolved`
-- `kingdom.rare-political-event.fired`
-- `political.event.published`
+- `EventId`
+- `Kingdom`, `KingdomName`
+- `OldValue`, `NewValue`, `OldNumber`, `NewNumber`
+- `PartyId`
+- `IdeologyId`, `CurrentId`, `GovernmentId`
+- `TargetKingdom`, `TargetKingdomName`
+- `WarSource`
+- `Actor`, actor identity/name
+- `City`
+- `SourceAddonId`
+- `Category`
+- `Year`
+- `Text`, `EventKey`
+- `Payload` for custom addon events
 
-`Events.All` subscribes to every known event.
+Not every event populates every field.
 
-Each addon callback is isolated: exceptions are recorded in diagnostics and dispatch continues for other subscribers. The bus also has a recursion-depth guard.
+## Current core event families
+
+API 1.19 exposes events for:
+
+- ideology/current/government changes;
+- party creation, activation, deactivation, rename, ideology, leader, support and radicalism;
+- ruling party and ruler changes;
+- elections;
+- dynamic country-name changes;
+- war start/end;
+- political and leadership crises;
+- settlement separatism/autonomy/secession lifecycle;
+- rare political events;
+- published political events;
+- world lifecycle: `WorldChanged`, `WorldReady`, `WorldUnavailable`.
+
+Use `PoliticalWorldAPI.GetEventIds()` when a tool needs the current list.
+
+`Events.All` subscribes to all dispatched events.
+
+## Custom addon events
+
+Register a namespaced event ID:
+
+```csharp
+PoliticalWorldAPI.RegisterAddonEvent(
+    AddonId,
+    AddonId + ".mana_crisis"
+);
+```
+
+Publish it with an optional payload and typed world context:
+
+```csharp
+PoliticalWorldAPI.PublishAddonEvent(
+    AddonId,
+    AddonId + ".mana_crisis",
+    new Dictionary<string, string>
+    {
+        ["severity"] = "high"
+    },
+    kingdom: kingdom,
+    city: city,
+    category: "magic"
+);
+```
+
+Another addon can subscribe to that event ID through the same `Subscribe(...)` method.
+
+## Callback isolation
+
+One addon callback throwing an exception does not stop dispatch to other subscribers. Political World records the error in diagnostics.
+
+There is also a recursion-depth guard, so do not build event loops that endlessly republish each other.
+
+## Unsubscribe
+
+Use `Unsubscribe(...)` for one handler or `UnsubscribeAll(AddonId)` when your runtime registration needs to be detached.
 
 ## Rare Political Event Registry
 
 ```csharp
-PoliticalWorldAPI.RegisterRarePoliticalEvent(AddonId,
+PoliticalWorldAPI.RegisterRarePoliticalEvent(
+    AddonId,
     new PoliticalWorldAPI.RarePoliticalEventDefinition
     {
         Id = AddonId + ".palace_crisis",
@@ -47,10 +107,19 @@ PoliticalWorldAPI.RegisterRarePoliticalEvent(AddonId,
         CooldownYears = 10,
         ChancePermille = 30,
         Condition = PoliticalWorldAPI.Conditions.StabilityAtMost(45),
-        Handler = kingdom => PoliticalWorldAPI.ChangeKingdomStability(kingdom, -5)
-    });
+        Handler = kingdom =>
+            PoliticalWorldAPI.ChangeKingdomStability(kingdom, -5)
+    }
+);
 ```
 
-`ChancePermille` is 0..1000: 30 = 3%. The registry runs from the existing yearly political pipeline and does not create an addon `Update()`.
+`ChancePermille` uses `0..1000`, so `30 = 3%`.
 
-Cooldown is stored per kingdom/event through Political World's namespaced state.
+Rare events run from Political World's existing yearly political pipeline. They do not create a new addon `Update()` loop.
+
+See also:
+
+- `examples/04_Event_Listener`
+- `examples/05_Rare_Event`
+- `examples/07_Addon_Event`
+- [World lifecycle](world-lifecycle.md)

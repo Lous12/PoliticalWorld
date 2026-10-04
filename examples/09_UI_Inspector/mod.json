@@ -1,0 +1,11 @@
+{
+  "name": "PW SDK Example 09 - UI Inspector",
+  "GUID": "Lous12.PWSDK.Example09",
+  "author": "Lous12",
+  "version": "1.0.0",
+  "description": "Public inspector UI example",
+  "targetGameBuild": 719,
+  "Dependencies": ["Lous12.PoliticalWorld"],
+  "OptionalDependencies": [],
+  "IncompatibleWith": []
+}

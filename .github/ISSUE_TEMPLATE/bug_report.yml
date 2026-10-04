@@ -1,38 +1,72 @@
 name: Bug report
-description: Report a Political World runtime or compatibility bug
+description: Report a Political World runtime, save/load or compatibility bug
 title: "[Bug] "
 labels: [bug]
 body:
   - type: textarea
     attributes:
       label: What happened?
-      description: Describe the expected and actual behavior.
+      description: Describe what you expected and what actually happened.
     validations:
       required: true
+
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+      description: Give the smallest reliable sequence you know.
+      placeholder: |
+        1. Load/create ...
+        2. Do ...
+        3. Change ...
+        4. Bug appears
+    validations:
+      required: true
+
   - type: input
     attributes:
       label: WorldBox version/build
       placeholder: "0.51.2 / build 719"
     validations:
       required: true
+
   - type: input
     attributes:
       label: NeoModLoader version
       placeholder: "1.2.0.1"
     validations:
       required: true
+
   - type: input
     attributes:
       label: Political World version
-      placeholder: "1.7.0"
+      placeholder: "1.11.0"
     validations:
       required: true
+
   - type: textarea
     attributes:
-      label: Steps to reproduce
+      label: Other installed mods/addons
+      description: List anything else enabled when the bug happened. Write None if PW was alone.
+      placeholder: "Grand Strategy 0.9.1, ..."
     validations:
       required: true
+
+  - type: dropdown
+    attributes:
+      label: Does save/load affect the bug?
+      options:
+        - "Yes"
+        - "No"
+        - "Not sure"
+    validations:
+      required: true
+
   - type: textarea
     attributes:
-      label: Relevant log
-      description: Attach Player.log or paste the smallest relevant error section.
+      label: Player.log
+      description: Attach Player.log if possible. For crashes, load bugs, Harmony errors or compatibility problems this is especially useful.
+
+  - type: textarea
+    attributes:
+      label: Save / screenshots / video
+      description: Optional, but attach a save when the issue depends on an existing world's state.

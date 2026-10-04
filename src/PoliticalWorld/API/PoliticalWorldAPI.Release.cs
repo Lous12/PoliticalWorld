@@ -45,10 +45,13 @@ namespace Lous12.PoliticalWorld
                     ApiVersion = ApiVersion,
                     ApiMajor = ApiMajor,
                     ApiMinor = ApiMinor,
-                    Channel = "development",
+                    // API 1.19 ships as part of the public PW 1.11 release.
+                    // Keep this in sync with the release metadata instead of
+                    // leaving development defaults in support reports.
+                    Channel = "stable",
                     CoreModId = CoreModId,
                     DisplayName = "PoliticalWorldAPI General Framework",
-                    StableContract = false,
+                    StableContract = true,
                     Capabilities = GetCapabilities()
                 };
             }
