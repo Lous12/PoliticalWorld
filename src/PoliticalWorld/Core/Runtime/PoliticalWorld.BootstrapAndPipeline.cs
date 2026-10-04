@@ -131,7 +131,7 @@ namespace Lous12.PoliticalWorld
                     LogWarning(
                         "Compatibility warning: detected WorldBox " +
                         detected +
-                        ", while Political World 1.7.2-dev3-test2 targets " +
+                        ", while Political World 1.11.0 targets " +
                         "0.51.2 (719@build-719@5dec). The mod will still " +
                         "load, but version-sensitive UI/Harmony hooks may " +
                         "need revalidation."
@@ -205,10 +205,13 @@ namespace Lous12.PoliticalWorld
             // when the slower political simulation tick has not fired yet.
             EnsureWarDiplomacyPatches();
 
-            // INTERACTION FIX1: a vanilla kingdom split rewires city/kingdom,
-            // diplomacy and army references over several operations. During the
-            // short settle window keep lifecycle/UI alive but do not run any
-            // simulation system or addon-facing structural scan.
+            // A vanilla kingdom split is not atomic from our point of view.
+            // City/kingdom, diplomacy and army references are rewired over
+            // several operations. During that short mess keep lifecycle/UI
+            // alive but DO NOT let political simulation inspect the structure.
+            //
+            // Removing this because "the objects are already non-null" can make
+            // PW react to a kingdom that only exists halfway through the split.
             if (IsWorldTopologySettling())
             {
                 ResetPoliticalPartyUpdatePass();
@@ -217,10 +220,12 @@ namespace Lous12.PoliticalWorld
                 return;
             }
 
-            // v1.7.2-dev1 MAP LOAD FIX: loading a populated Workshop/save map
-            // can expose a usable kingdom manager while ownership/topology is
-            // still settling. Keep UI/lifecycle/Harmony alive, but do not allow
-            // autonomous politics to mutate that half-loaded world.
+            // Same idea on save load: a usable kingdom manager is NOT proof
+            // that ownership/topology is done restoring. UI/lifecycle/Harmony
+            // may stay alive, but autonomous politics waits behind the load gate.
+            //
+            // This is one of those boring guards that prevents spectacularly
+            // stupid bugs like alliances changing while the loading screen is up.
             bool worldLoadBlocked = IsWorldLoadAutonomyBlocked();
             UpdatePoliticalChroniclePersistenceAfterLoad();
             if (worldLoadBlocked)

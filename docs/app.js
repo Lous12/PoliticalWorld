@@ -6,216 +6,180 @@ const langToggle = document.getElementById('langToggle');
 
 const translations = {
   en: {
-    brand_sub: 'Politics • API • Framework',
+    brand_sub: 'Politics • API • Open development',
     nav_status: 'Status',
-    nav_update: 'Latest update',
     nav_players: 'Players',
     nav_creators: 'Creators',
     nav_community: 'Community',
-    nav_roadmap: 'Roadmap',
+    nav_development: 'Development',
     nav_support: 'Support',
-    menu_all: 'Everything in one menu',
+    menu_all: 'Everything important in one place',
     menu_project: 'Project',
-    menu_direction: 'Development direction',
-    menu_play: 'Play',
-    menu_help: 'Help / bug reports',
     menu_build: 'Build',
+    menu_contribute: 'Contribute',
+    menu_support: 'Support',
     menu_get_started: 'Getting Started',
-    menu_framework: 'Framework Vision',
-    menu_what_build: 'What can you build?',
-    menu_templates: 'Templates',
     menu_examples: 'Examples',
-    menu_community: 'Community',
+    menu_templates: 'Templates',
     menu_addons: 'Community Addons',
-    menu_support: 'Support the project',
-    menu_language: 'Language',
-    hero_eyebrow: 'Politics mod • Public API • Addon Framework',
-    hero_title: 'Play politics. Build anything.',
-    hero_lead: 'Political World is a politics mod for WorldBox and a growing framework for creators who want to build addons on top of a stable public API.',
+    hero_eyebrow: 'WorldBox politics mod • Public API • Open development',
+    hero_title: 'Political World 1.11',
+    hero_lead: 'A politics mod for WorldBox with ideologies, parties, governments, crises, international blocs and a public API for addons.',
     hero_steam: 'Open on Steam',
     hero_github: 'Open GitHub',
     status_kicker: 'Current status',
-    status_title: 'What is live right now',
-    status_public: 'Public Beta',
-    status_beta: 'Public Beta',
-    status_tested: 'runtime-tested base',
+    status_title: 'What the repository targets now',
+    status_maintenance: 'Maintenance / open development',
+    status_release: 'current release source',
+    status_api: 'current public API',
     status_supported: 'supported setup',
-    latest_kicker: 'Latest framework update',
-    latest_title: 'Public API 1.19 — Creator & Localization Update',
-    latest_body: 'API 1.19 improves the creator side of Political World: optional localization with readable English fallback, stronger addon data, reusable Conditions and Effects, better diagnostics, creator conveniences and performance work.',
-    latest_api: 'Read API 1.19 →',
-    latest_vision: 'See the framework direction →',
     players_kicker: 'For players',
-    players_title: 'Political World as a mod',
-    players_politics_title: 'Politics that evolves',
-    players_politics_body: 'Ideologies, parties, governments, elections, crises, revolutions and leadership changes grow with the world.',
-    players_world_title: 'World-level politics',
-    players_world_body: 'International blocs, vanilla Alliance integration, physical ruler summits and war-related political consequences.',
-    players_map_body: 'Dedicated map modes for parties, ideologies and political tension without turning the mod into a heavy per-frame simulation.',
+    players_title: 'Politics that lives with the world',
+    players_politics_title: 'Domestic politics',
+    players_politics_body: 'Ideologies, parties, governments, elections, stability, crises, coups and revolutions.',
+    players_world_title: 'International politics',
+    players_world_body: 'International blocs, vanilla alliance integration, summits, diplomacy and political consequences of war.',
+    players_map_body: 'Political map modes and dedicated kingdom/city Politics pages without turning the mod into a constant full-world scan.',
     creators_kicker: 'For creators',
-    creators_title: 'Start small, then build outward',
-    creator_start_title: 'Make your first addon',
-    creator_start_body: 'Use the template and quick-start guide. One event or one ideology is enough for a first project.',
+    creators_title: 'Build on the public API, not private internals',
+    creator_start_title: 'Start an addon',
+    creator_start_body: 'Use the addon template and examples. Start with one visible feature and grow from there.',
     creator_start_link: 'Getting Started →',
-    creator_api_title: 'Use the public contract',
-    creator_api_body: 'Build through PoliticalWorldAPI instead of depending on internal Main or ScenarioBridge implementation details.',
-    creator_request_title: 'Ask for missing capabilities',
-    creator_request_body: 'If the API cannot express something useful, request the capability instead of creating a private workaround.',
-    creator_request_link: 'Open Discussions →',
-    community_kicker: 'Community',
-    community_title: 'A place for addons to grow',
-    community_catalog: 'Verified addon catalog',
-    community_empty_title: 'No verified community addons listed yet',
-    community_empty_body: 'That is fine. The catalog is intentionally curated: an addon is listed after it has been tested on a supported Political World setup.',
-    community_submit: 'Submit an addon for testing',
-    community_view: 'Open addon catalog',
-    community_testing_body: 'Compatibility testing before an addon is added to the public catalog.',
-    community_requests_title: 'Ideas & API requests',
-    community_requests_body: 'Tell us what the framework is missing before you have to bypass it.',
-    community_help_title: 'Modding help',
-    community_help_body: 'Questions, experiments and small projects are welcome.',
-    direction_kicker: 'Development direction',
-    direction_title: 'The mod is not abandoned — the foundation is the priority',
-    direction_body: 'For a while, large gameplay updates may be less frequent because the focus is on expanding the Public API. The goal is to let other creators build systems and addons without waiting for every idea to be implemented in the core mod.',
-    direction_link: 'Read the full framework vision →',
-    roadmap_kicker: 'Roadmap',
-    roadmap_title: 'From political API to general framework',
-    roadmap_done: 'Current stable base',
-    roadmap_next: 'Next focus',
-    roadmap_future: 'Later',
-    roadmap_19: 'Creator conveniences, localization fallback, addon data, Conditions / Effects, diagnostics and performance work.',
-    roadmap_110: 'Generic data and tags for more world objects, safer Actor / City access, custom events, extensible Conditions / Effects, generic content and better cross-addon integration.',
-    roadmap_ui_title: 'UI & ecosystem hooks',
-    roadmap_ui: 'Inspector sections, context actions, creator-tool integration, lifecycle helpers and more ways for addons to work together.',
+    creator_api_title: 'Use API 1.19',
+    creator_api_body: 'Events, addon data, world access, UI hooks, warfare helpers, content registration, diagnostics and more are exposed publicly.',
+    creator_ai_title: 'Using an AI coding assistant?',
+    creator_ai_body: 'Give it AI_START_HERE.md and AGENTS.md first so it does not invent WorldBox APIs or bypass PoliticalWorldAPI with reflection.',
+    community_kicker: 'Community development',
+    community_title: 'Fork it, patch it, build on it',
+    community_main_title: 'Political World is open for community work',
+    community_main_body: 'Forks, focused pull requests, addon experiments, documentation fixes and AI-assisted contributions are welcome. Official releases still come from Lous12.',
+    community_fork: 'Browse forks',
+    community_pr: 'Pull Requests',
+    community_addons_title: 'Community Addons',
+    community_addons_body: 'Independent addons can stay separate from core and use the same public API.',
+    community_issues_title: 'Issues',
+    community_issues_body: 'Good bug reports include versions, reproduction steps, Player.log and a save when it matters.',
+    community_discord_body: 'Talk about PW, addons, ideas, bugs and experiments with the community.',
+    community_catalog: 'Community Addons catalog',
+    development_kicker: 'Development status',
+    development_title: 'Active feature development is on a break',
+    development_body: 'Political World is not being pushed through another giant feature cycle right now. The focus is maintenance, critical fixes, repository cleanup, documentation and making the project easier for other programmers and addon authors to understand.',
+    development_chip_1: 'Critical fixes',
+    development_chip_2: 'Repository cleanup',
+    development_chip_3: 'Community contributions',
+    support_kicker: 'Support',
+    support_title: 'Support Political World',
+    support_da_body: 'The easiest regular way to support the project. Completely optional.',
+    support_da_button: 'Open DonationAlerts',
+    support_network_title: 'Check the network before sending.',
+    support_network_body: 'USDT on TRC20/TRON and USDT on TON use different networks. Send only through the network shown on the card.',
+    support_note: 'Donations never unlock features and are never required to use Political World, the API, source code or documentation.',
     directory_kicker: 'Directory',
     directory_title: 'Everything important in one place',
     directory_project: 'Project',
     directory_docs: 'Documentation',
     directory_build: 'Build',
-    directory_community: 'Community',
-    directory_requests: 'Help / Ideas / API requests',
-    support_kicker: 'Support',
-    support_title: 'Support Political World',
-    support_da_body: 'If you want to support development, you can use DonationAlerts. Support is completely optional.',
-    support_da_button: 'Open DonationAlerts',
-    support_dalink_body: 'An alternative way to support the project and future API / addon framework work.',
-    support_dalink_button: 'Open DALink',
-    support_note: 'You never need to donate to use Political World, the Public API, documentation or community resources.',
-    footer_tagline: 'Politics mod • Public API • Addon Framework'
+    directory_contribute: 'Contribute',
+    footer_tagline: 'Politics mod • Public API • Open development',
+    copy_address: 'Copy address',
+    copied: 'Copied!'
   },
   ru: {
-    brand_sub: 'Политика • API • Фреймворк',
+    brand_sub: 'Политика • API • открытая разработка',
     nav_status: 'Статус',
-    nav_update: 'Последнее обновление',
     nav_players: 'Игрокам',
-    nav_creators: 'Разработчикам',
+    nav_creators: 'Авторам',
     nav_community: 'Сообщество',
-    nav_roadmap: 'Планы',
+    nav_development: 'Разработка',
     nav_support: 'Поддержать',
-    menu_all: 'Всё важное в одном меню',
+    menu_all: 'Всё важное в одном месте',
     menu_project: 'Проект',
-    menu_direction: 'Направление разработки',
-    menu_play: 'Играть',
-    menu_help: 'Помощь / баги',
-    menu_build: 'Создавать',
+    menu_build: 'Разработка',
+    menu_contribute: 'Участие в разработке',
+    menu_support: 'Поддержать',
     menu_get_started: 'Первый аддон',
-    menu_framework: 'Куда развивается API',
-    menu_what_build: 'Что можно создавать?',
-    menu_templates: 'Шаблоны',
     menu_examples: 'Примеры',
-    menu_community: 'Сообщество',
+    menu_templates: 'Шаблоны',
     menu_addons: 'Аддоны сообщества',
-    menu_support: 'Поддержать проект',
-    menu_language: 'Язык',
-    hero_eyebrow: 'Мод про политику • Public API • платформа для аддонов',
-    hero_title: 'Играй с политикой. Создавай что угодно.',
-    hero_lead: 'Political World — мод про политику для WorldBox и развивающаяся платформа для авторов, которые хотят делать свои аддоны через стабильный Public API.',
+    hero_eyebrow: 'Мод для WorldBox • Public API • открытая разработка',
+    hero_title: 'Political World 1.11',
+    hero_lead: 'Мод про политику для WorldBox: идеологии, партии, формы правления, кризисы, международные блоки и публичный API для аддонов.',
     hero_steam: 'Открыть в Steam',
     hero_github: 'Открыть GitHub',
     status_kicker: 'Текущий статус',
-    status_title: 'Что уже доступно',
-    status_public: 'Public Beta',
-    status_beta: 'Public Beta',
-    status_tested: 'протестированная база',
-    status_supported: 'поддерживаемая связка',
-    latest_kicker: 'Последнее обновление API',
-    latest_title: 'Public API 1.19 — Creator & Localization Update',
-    latest_body: 'API 1.19 улучшает именно сторону разработки аддонов: необязательная локализация с понятным английским fallback, данные аддонов, готовые Conditions и Effects, диагностика, creator-функции и оптимизация.',
-    latest_api: 'Открыть API 1.19 →',
-    latest_vision: 'Посмотреть направление фреймворка →',
+    status_title: 'На что сейчас рассчитан репозиторий',
+    status_maintenance: 'Поддержка / открытая разработка',
+    status_release: 'актуальные исходники релиза',
+    status_api: 'актуальный Public API',
+    status_supported: 'поддерживаемая сборка',
     players_kicker: 'Игрокам',
-    players_title: 'Political World как мод',
-    players_politics_title: 'Политика, которая развивается',
-    players_politics_body: 'Идеологии, партии, формы правления, выборы, кризисы, революции и смена руководства развиваются вместе с миром.',
-    players_world_title: 'Политика между государствами',
-    players_world_body: 'Международные блоки, интеграция с vanilla Alliance, физические саммиты правителей и политические последствия войн.',
-    players_map_body: 'Отдельные режимы карты для партий, идеологий и политического напряжения без тяжёлой симуляции каждого жителя каждый кадр.',
-    creators_kicker: 'Разработчикам',
-    creators_title: 'Начни с малого, а потом расширяй',
-    creator_start_title: 'Сделай первый аддон',
-    creator_start_body: 'Возьми шаблон и быстрый старт. Для первого проекта достаточно одного события или одной идеологии.',
+    players_title: 'Политика, которая живёт вместе с миром',
+    players_politics_title: 'Внутренняя политика',
+    players_politics_body: 'Идеологии, партии, формы правления, выборы, стабильность, кризисы, перевороты и революции.',
+    players_world_title: 'Международная политика',
+    players_world_body: 'Международные блоки, интеграция с vanilla Alliance, саммиты, дипломатия и политические последствия войн.',
+    players_map_body: 'Политические режимы карты и отдельные страницы Politics для государств и поселений без постоянного полного сканирования мира.',
+    creators_kicker: 'Авторам',
+    creators_title: 'Стройте на Public API, а не на внутренних классах',
+    creator_start_title: 'Сделать первый аддон',
+    creator_start_body: 'Возьмите шаблон и примеры. Начните с одной видимой функции и расширяйте проект постепенно.',
     creator_start_link: 'Первый аддон →',
-    creator_api_title: 'Работай через Public API',
-    creator_api_body: 'Используй PoliticalWorldAPI вместо зависимости от внутренних Main, ScenarioBridge и других деталей реализации.',
-    creator_request_title: 'Проси недостающие возможности',
-    creator_request_body: 'Если API не умеет что-то полезное, лучше запросить новую возможность, чем делать приватный обходной путь.',
-    creator_request_link: 'Открыть Discussions →',
-    community_kicker: 'Сообщество',
-    community_title: 'Место, где могут расти аддоны',
-    community_catalog: 'Каталог проверенных аддонов',
-    community_empty_title: 'Проверенных аддонов сообщества пока нет',
-    community_empty_body: 'И это нормально. Каталог специально модерируется: аддон появляется в нём после проверки на поддерживаемой версии Political World.',
-    community_submit: 'Отправить аддон на проверку',
-    community_view: 'Открыть каталог аддонов',
-    community_testing_body: 'Проверка совместимости перед тем, как аддон попадёт в публичный каталог.',
-    community_requests_title: 'Идеи и запросы к API',
-    community_requests_body: 'Лучше рассказать, чего не хватает фреймворку, чем потом обходить Public API.',
-    community_help_title: 'Помощь с моддингом',
-    community_help_body: 'Вопросы, эксперименты и маленькие проекты тоже приветствуются.',
-    direction_kicker: 'Направление разработки',
-    direction_title: 'Мод не заброшен — сейчас важнее фундамент',
-    direction_body: 'Какое-то время крупных игровых обновлений может быть меньше, потому что основной упор идёт на Public API. Цель — дать другим авторам возможность делать свои системы и аддоны, не дожидаясь, пока каждая идея появится в основном моде.',
-    direction_link: 'Прочитать полное видение фреймворка →',
-    roadmap_kicker: 'Планы',
-    roadmap_title: 'От политического API к общей платформе',
-    roadmap_done: 'Текущая стабильная база',
-    roadmap_next: 'Следующий этап',
-    roadmap_future: 'Позже',
-    roadmap_19: 'Creator-функции, fallback-локализация, данные аддонов, Conditions / Effects, диагностика и оптимизация.',
-    roadmap_110: 'Универсальные данные и теги для объектов мира, безопасная работа с Actor / City, свои события, расширяемые Conditions / Effects, generic content и более удобная связь между аддонами.',
-    roadmap_ui_title: 'UI и интеграция экосистемы',
-    roadmap_ui: 'Разделы инспектора, контекстные действия, интеграция creator tools, lifecycle-помощники и новые способы связи аддонов между собой.',
+    creator_api_title: 'Использовать API 1.19',
+    creator_api_body: 'События, данные аддона, доступ к миру, UI hooks, warfare helpers, регистрация контента, диагностика и другое доступны публично.',
+    creator_ai_title: 'Используете ИИ для кода?',
+    creator_ai_body: 'Сначала дайте ему AI_START_HERE.md и AGENTS.md, чтобы он не выдумывал API WorldBox и не лез reflection’ом мимо PoliticalWorldAPI.',
+    community_kicker: 'Разработка сообщества',
+    community_title: 'Форкайте, патчите, стройте сверху',
+    community_main_title: 'Political World открыт для работы сообщества',
+    community_main_body: 'Форки, небольшие PR, эксперименты с аддонами, исправления документации и AI-assisted contributions приветствуются. Официальные релизы по-прежнему выпускает Lous12.',
+    community_fork: 'Посмотреть форки',
+    community_pr: 'Pull Requests',
+    community_addons_title: 'Аддоны сообщества',
+    community_addons_body: 'Независимые аддоны могут оставаться отдельно от core и использовать тот же Public API.',
+    community_issues_title: 'Issues',
+    community_issues_body: 'Хороший баг-репорт содержит версии, шаги воспроизведения, Player.log и сейв, если он нужен.',
+    community_discord_body: 'Обсуждение PW, аддонов, идей, багов и экспериментов вместе с сообществом.',
+    community_catalog: 'Каталог аддонов сообщества',
+    development_kicker: 'Статус разработки',
+    development_title: 'Активная разработка больших функций сейчас на паузе',
+    development_body: 'Political World сейчас не гонится за очередным огромным циклом новых механик. Фокус — поддержка, критические фиксы, уборка репозитория, документация и то, чтобы другим программистам и авторам аддонов было проще разобраться в проекте.',
+    development_chip_1: 'Критические фиксы',
+    development_chip_2: 'Уборка репозитория',
+    development_chip_3: 'Вклад сообщества',
+    support_kicker: 'Поддержка',
+    support_title: 'Поддержать Political World',
+    support_da_body: 'Самый простой обычный способ поддержать проект. Полностью добровольно.',
+    support_da_button: 'Открыть DonationAlerts',
+    support_network_title: 'Перед отправкой проверьте сеть.',
+    support_network_body: 'USDT в TRC20/TRON и USDT в TON используют разные сети. Отправляйте только через сеть, указанную на карточке.',
+    support_note: 'Донаты не открывают функции и никогда не нужны для использования Political World, API, исходников или документации.',
     directory_kicker: 'Навигация',
     directory_title: 'Всё важное в одном месте',
     directory_project: 'Проект',
     directory_docs: 'Документация',
     directory_build: 'Разработка',
-    directory_community: 'Сообщество',
-    directory_requests: 'Помощь / Идеи / Запросы к API',
-    support_kicker: 'Поддержка',
-    support_title: 'Поддержать Political World',
-    support_da_body: 'Если хочется поддержать разработку, можно использовать DonationAlerts. Это полностью добровольно.',
-    support_da_button: 'Открыть DonationAlerts',
-    support_dalink_body: 'Альтернативный способ поддержать проект, будущие версии API и развитие платформы для аддонов.',
-    support_dalink_button: 'Открыть DALink',
-    support_note: 'Донат никогда не нужен для использования Political World, Public API, документации или материалов сообщества.',
-    footer_tagline: 'Мод про политику • Public API • платформа для аддонов'
+    directory_contribute: 'Участие',
+    footer_tagline: 'Мод про политику • Public API • открытая разработка',
+    copy_address: 'Скопировать адрес',
+    copied: 'Скопировано!'
   }
 };
 
 function openMenu() {
+  if (!menu) return;
   menu.classList.add('open');
-  backdrop.classList.add('show');
+  backdrop?.classList.add('show');
   document.body.classList.add('menu-open');
-  menuToggle.setAttribute('aria-expanded', 'true');
+  menuToggle?.setAttribute('aria-expanded', 'true');
   menu.setAttribute('aria-hidden', 'false');
 }
 
 function closeMenu() {
+  if (!menu) return;
   menu.classList.remove('open');
-  backdrop.classList.remove('show');
+  backdrop?.classList.remove('show');
   document.body.classList.remove('menu-open');
-  menuToggle.setAttribute('aria-expanded', 'false');
+  menuToggle?.setAttribute('aria-expanded', 'false');
   menu.setAttribute('aria-hidden', 'true');
 }
 
@@ -231,26 +195,59 @@ function setLanguage(lang) {
   localStorage.setItem('pw-lang', lang);
 
   document.querySelectorAll('[data-i18n]').forEach(el => {
-    const key = el.dataset.i18n;
-    const value = translations[lang]?.[key];
+    const value = translations[lang]?.[el.dataset.i18n];
     if (value) el.textContent = value;
   });
 
   document.querySelectorAll('[data-lang-link]').forEach(el => {
-    const href = el.getAttribute('href');
-    if (!href) return;
-    if (lang === 'ru') el.setAttribute('href', href.replace(/^en\//, 'ru/'));
-    else el.setAttribute('href', href.replace(/^ru\//, 'en/'));
-    el.dataset.langLink = lang;
+    const marker = el.dataset.langLink || '';
+    if (!marker) return;
+    const localized = lang === 'ru' ? marker.replace(/^en\//, 'ru/') : marker.replace(/^ru\//, 'en/');
+    if (localized.startsWith('docs/')) {
+      el.href = 'https://github.com/Lous12/PoliticalWorld/blob/main/' + localized;
+    } else {
+      el.href = localized;
+    }
   });
 
-  langToggle.textContent = lang === 'en' ? 'RU' : 'EN';
-  langToggle.setAttribute('aria-label', lang === 'en' ? 'Переключить на русский' : 'Switch to English');
+  document.querySelectorAll('.copy-button').forEach(button => {
+    button.textContent = translations[lang]?.copy_address || 'Copy address';
+  });
+
+  if (langToggle) {
+    langToggle.textContent = lang === 'en' ? 'RU' : 'EN';
+    langToggle.setAttribute('aria-label', lang === 'en' ? 'Переключить на русский' : 'Switch to English');
+  }
 }
 
-langToggle?.addEventListener('click', () => {
-  const current = document.documentElement.dataset.lang || 'en';
-  setLanguage(current === 'en' ? 'ru' : 'en');
+async function copyWallet(button) {
+  const targetId = button.dataset.copyTarget;
+  const target = targetId ? document.getElementById(targetId) : null;
+  const value = target?.textContent?.trim();
+  if (!value) return;
+
+  try {
+    await navigator.clipboard.writeText(value);
+  } catch (_) {
+    const textarea = document.createElement('textarea');
+    textarea.value = value;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    textarea.remove();
+  }
+
+  const lang = document.documentElement.dataset.lang || 'en';
+  button.textContent = translations[lang]?.copied || 'Copied!';
+  window.setTimeout(() => {
+    button.textContent = translations[lang]?.copy_address || 'Copy address';
+  }, 1400);
+}
+
+document.querySelectorAll('.copy-button').forEach(button => {
+  button.addEventListener('click', () => copyWallet(button));
 });
 
 const preferred = localStorage.getItem('pw-lang');

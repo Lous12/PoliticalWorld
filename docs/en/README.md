@@ -1,35 +1,43 @@
 # Political World — developer documentation (EN)
 
+**Core mod:** `1.11.0`  
 **Core mod ID:** `Lous12.PoliticalWorld`  
 **Public API:** `Lous12.PoliticalWorld.PoliticalWorldAPI`  
-**Current tested API:** `1.19.0`  
-**Target PC WorldBox build:** `0.51.2 / build 719`
+**Current public API:** `1.19.0`  
+**Target PC WorldBox build:** `0.51.2 / build 719`  
+**NeoModLoader:** `1.2.0.1`
 
-Political World is both:
+Political World is both a politics mod for WorldBox and a public addon framework.
 
-1. a politics mod for WorldBox;
-2. a growing general addon framework.
-
-Political APIs remain fully supported, but creators are **not expected to limit themselves to politics**. The framework direction is to expose reusable registration, localization, data, tags, events, conditions, effects, actions, UI integration and safe WorldBox object access.
+Active large feature development is currently on a break. The repository is still maintained for critical fixes, documentation, API clarity, forks, PRs and community addon work.
 
 ## Start here
 
-- [Getting started: first addon in 10 minutes](GETTING_STARTED.md)
+- [Getting Started: first addon in 10 minutes](GETTING_STARTED.md)
+- [API 1.19 Reference](API_REFERENCE_1_19.md)
+- [`examples/` index](../../examples/README.md)
+- [Addon template](../../templates/PoliticalWorld-Addon-Template)
 - [Framework vision](FRAMEWORK_VISION.md)
 - [What can you build?](what-you-can-build.md)
-- [API 1.19 quick reference](API_REFERENCE_1_19.md)
+- [Compatibility and versioning](compatibility-versioning.md)
+- [Common mistakes](common-mistakes.md)
+
+Topic docs:
+
 - [Ideologies](ideologies.md)
 - [Governments](governments.md)
 - [Parties](parties.md)
 - [Scenario Actions](actions.md)
-- [Core events and rare political events](political-events.md)
-- [Addon data and tags](data-storage.md)
+- [Core events, custom events and rare political events](political-events.md)
+- [World access and lifecycle](world-lifecycle.md)
+- [Addon data, tags and migrations](data-storage.md)
+- [General addon framework](general-framework.md)
+- [UI integration](ui-integration.md)
+- [Warfare API](warfare.md)
 - [Validation and diagnostics](validation-diagnostics.md)
-- [Compatibility and versioning](compatibility-versioning.md)
 - [NeoModLoader UI Recipes](nml-ui-recipes.md)
 - [Standalone NML mod](standalone-nml-starter.md)
 - [Using AI for development](using-ai.md)
-- [Common mistakes](common-mistakes.md)
 
 ## Main rule
 
@@ -37,14 +45,30 @@ Third-party addons should work through `PoliticalWorldAPI`.
 
 Do not depend on `Main`, `ScenarioBridge` or Political World's internal classes. They are implementation details and may change without compatibility guarantees.
 
-If a first-party addon needs an internal shortcut, the preferred response is to improve the public API instead of creating a private backdoor.
+If the public API is missing a capability, request/add a safe public capability instead of creating a reflection backdoor.
+
+## Minimum API version vs current API
+
+`1.19.0` is the current public API. That does **not** mean every addon must require 1.19.
+
+An addon should declare the minimum API version it actually needs. A tiny addon using only older capabilities can legitimately check `IsCompatible(1, 6)`.
 
 ## Performance rule
 
-Prefer registration and events over continuous polling.
+Prefer registration and events over continuous polling. Avoid scanning the whole world every frame when an event, Action, Condition, Rare Event or cached addon state can express the same behavior.
 
-Political World is intentionally event-driven and aggregate-first. Addons should avoid scanning the whole world every frame when an event, Action, Condition, Rare Event or cached addon state can express the same behavior.
+## Core contributors / AI assistants
 
-## Discord
+Before changing Political World itself, read the repository root files:
 
-Political World Community: https://discord.gg/kYH5GadndE
+- `AGENTS.md`
+- `ARCHITECTURE.md`
+- `KNOWN_RISKS.md`
+- `DEVELOPMENT.md`
+
+## Community
+
+- Discord: https://discord.gg/kYH5GadndE
+- Issues: https://github.com/Lous12/PoliticalWorld/issues
+- Pull Requests: https://github.com/Lous12/PoliticalWorld/pulls
+- Forks: https://github.com/Lous12/PoliticalWorld/forks

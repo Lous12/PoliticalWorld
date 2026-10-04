@@ -3,7 +3,7 @@
   "GUID": "YourName.MyPoliticalAddon",
   "author": "YourName",
   "version": "0.1.0",
-  "description": "Political World addon template",
+  "description": "Political World API 1.19 addon template",
   "targetGameBuild": 719,
   "Dependencies": [
     "Lous12.PoliticalWorld"

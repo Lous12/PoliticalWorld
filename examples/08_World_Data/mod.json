@@ -1,0 +1,11 @@
+{
+  "name": "PW SDK Example 08 - World Data",
+  "GUID": "Lous12.PWSDK.Example08",
+  "author": "Lous12",
+  "version": "1.0.0",
+  "description": "Capped world query and addon data example",
+  "targetGameBuild": 719,
+  "Dependencies": ["Lous12.PoliticalWorld"],
+  "OptionalDependencies": [],
+  "IncompatibleWith": []
+}

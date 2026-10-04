@@ -9,12 +9,24 @@ body:
       description: What would you like Political World to do?
     validations:
       required: true
+
   - type: textarea
     attributes:
       label: Why it helps
     validations:
       required: true
+
   - type: textarea
     attributes:
       label: Possible approach
-      description: Optional. Keep performance and compatibility in mind.
+      description: Optional. Keep performance, save compatibility and interaction with vanilla WorldBox in mind.
+
+  - type: dropdown
+    attributes:
+      label: Is this mainly for core PW or for an addon/API?
+      options:
+        - "Political World core"
+        - "Public API / addon support"
+        - "Not sure"
+    validations:
+      required: true

@@ -6,12 +6,20 @@ namespace Lous12.PWSDK.Example06
     public class Main : BasicMod<Main>
     {
         private const string AddonId = "Lous12.PWSDK.Example06";
+
         protected override void OnModLoad()
         {
+            // Minimum for this example. Current PoliticalWorldAPI is newer.
             if (!PoliticalWorldAPI.IsCompatible(1, 6)) return;
+
             if (!PoliticalWorldAPI.RegisterAddon(new PoliticalWorldAPI.AddonDefinition
             {
-                Id = AddonId, Name = "PW SDK Example 06", Version = "1.0.0", Author = "Lous12"
+                Id = AddonId,
+                Name = "PW SDK Example 06",
+                Version = "1.0.0",
+                Author = "Lous12",
+                RequiredApiMajor = 1,
+                RequiredApiMinor = 6
             })) return;
 
             PoliticalWorldAPI.RegisterAction(AddonId, new PoliticalWorldAPI.ActionDefinition
@@ -24,6 +32,7 @@ namespace Lous12.PWSDK.Example06
                 Condition = PoliticalWorldAPI.Conditions.StabilityAtMost(95),
                 Handler = kingdom => PoliticalWorldAPI.ChangeKingdomStability(kingdom, 5)
             });
+
             PoliticalWorldAPI.LogDiagnosticsReport(AddonId);
         }
     }

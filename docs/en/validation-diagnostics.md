@@ -1,9 +1,17 @@
-# Validation and Developer Diagnostics
+# Validation, requirements and diagnostics
 
-Before registering a complex object, call `Validate...` when you want a human-readable failure reason.
+PoliticalWorldAPI has three related layers:
+
+1. validate definitions before registration;
+2. check API/capability requirements;
+3. collect diagnostics/support information after load.
+
+## Validate content before registration
 
 ```csharp
-var validation = PoliticalWorldAPI.ValidateGovernment(AddonId, definition);
+var validation =
+    PoliticalWorldAPI.ValidateGovernment(AddonId, definition);
+
 if (!validation.IsValid)
 {
     LogError(validation.Summary);
@@ -11,14 +19,75 @@ if (!validation.IsValid)
 }
 ```
 
-Codes such as `PW203`, `PW403`, and `PW508` are designed for stable diagnostics. A warning does not have to block registration; an error does.
+`ValidationResult.Issues` contains stable-style diagnostic codes, human-readable messages and `IsError`.
 
-After addon load, a useful call is:
+Warnings do not necessarily block registration. Errors do.
+
+Registration methods also run their own validation, so explicit `Validate...` is mainly useful when you want to show a better error before calling the registration method.
+
+## Check framework requirements
+
+Modern addons can describe minimum API/capability requirements in `AddonDefinition`.
+
+```csharp
+var definition = new PoliticalWorldAPI.AddonDefinition
+{
+    Id = AddonId,
+    Name = "My Addon",
+    RequiredApiMajor = 1,
+    RequiredApiMinor = 19,
+    RequiredCapabilities = new[]
+    {
+        "world.lifecycle.events",
+        "diagnostics.report"
+    }
+};
+
+var check =
+    PoliticalWorldAPI.Framework.CheckRequirements(definition);
+
+if (!check.Compatible)
+{
+    LogError(check.Summary);
+    return;
+}
+```
+
+Do not require 1.19 if you do not actually use 1.19-era capabilities.
+
+## Diagnostics
+
+After load:
 
 ```csharp
 PoliticalWorldAPI.LogDiagnosticsReport(AddonId);
 ```
 
-The report includes registered ideologies, governments, actions, rare events, subscriptions, callback errors, warnings, and errors.
+The addon diagnostics track registration counts, subscriptions, callback errors, warnings and errors.
 
-If an Event Bus or rare-event callback throws, Political World catches it, records diagnostics, and continues running other addons.
+Event/Rare Event callback exceptions are isolated and recorded instead of stopping dispatch for every other addon.
+
+## Support report
+
+API 1.19 adds a copy-paste-friendly framework support report:
+
+```csharp
+string report =
+    PoliticalWorldAPI.Framework.GetSupportReport(AddonId);
+```
+
+This is useful for GitHub/Discord bug reports together with:
+
+- WorldBox version/build;
+- NeoModLoader version;
+- Political World version;
+- addon version;
+- exact reproduction steps;
+- `Player.log`;
+- whether an existing save was involved.
+
+## Ecosystem diagnostics
+
+`PoliticalWorldAPI.Ecosystem` exposes framework/addon snapshots, compatibility state, event metrics and recorded framework issues.
+
+Use these for developer tools and diagnostics, not for per-frame gameplay polling.

@@ -9,19 +9,27 @@ body:
       description: What is the addon trying to achieve?
     validations:
       required: true
+
   - type: textarea
     attributes:
       label: Missing capability
-      description: What cannot currently be done through PoliticalWorldAPI?
+      description: What cannot currently be done through PoliticalWorldAPI 1.19?
     validations:
       required: true
+
   - type: textarea
     attributes:
-      label: Why existing API is insufficient
-      description: Mention methods/capabilities already considered.
+      label: Existing API paths considered
+      description: Mention methods/capabilities you already checked and why they do not solve it.
     validations:
       required: true
+
   - type: textarea
     attributes:
       label: Proposed safe API shape
-      description: Optional. Do not rely on reflection/internal classes.
+      description: Optional. Describe the smallest public capability that would solve the problem. Do not design around reflection/private core access.
+
+  - type: textarea
+    attributes:
+      label: Runtime / save implications
+      description: Optional. Mention whether this needs world scanning, persistence, UI hooks, warfare hooks, save migration, etc.
