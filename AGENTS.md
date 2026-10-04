@@ -75,3 +75,30 @@ counter++;
 ```
 
 An occasional swear word in an internal comment is fine if it makes a real warning clearer. Do not turn every file into a meme.
+
+## AI-specific rules
+
+If you are an AI assistant:
+
+- inspect the actual source before proposing a method name;
+- do not invent PoliticalWorldAPI members;
+- do not invent WorldBox/NML behavior;
+- do not "clean up" compatibility code just because it looks redundant;
+- do not bypass the public API with reflection when writing an addon;
+- for core work, explicitly list what other systems may be affected;
+- prefer one focused patch over a giant rewrite;
+- require runtime testing for persistence, naming, UI tabs, alliances and war patches.
+
+## Minimum runtime evidence
+
+For runtime changes record:
+
+- WorldBox version/build;
+- NML version;
+- Political World version;
+- exact reproduction steps;
+- whether an existing save was used;
+- relevant `Player.log` lines;
+- save/load result when persistence is involved.
+
+For UI changes, test repeated tab/window switching. One successful click is not enough.
