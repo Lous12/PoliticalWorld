@@ -65,6 +65,19 @@ PoliticalWorldAPI 1.19 includes addon registration, capability discovery, locali
 
 The public API is split across partial source files under `src/PoliticalWorld/API/`.
 
+## Open source, forks and contributions
+
+Political World is open source under the MIT License. Forks, patches, PRs, experiments and AI-assisted contributions are welcome.
+
+Core contributors should start with:
+
+- [AGENTS.md](AGENTS.md)
+- [ARCHITECTURE.md](ARCHITECTURE.md)
+- [KNOWN_RISKS.md](KNOWN_RISKS.md)
+- [DEVELOPMENT.md](DEVELOPMENT.md)
+
+Forks should clearly identify themselves as unofficial and keep the original MIT notice.
+
 ## Community
 
 Use Discord for general discussion, testing and suggestions. GitHub Discussions remains the best place for API questions, addon testing and longer technical threads.

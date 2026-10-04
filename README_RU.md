@@ -53,6 +53,19 @@ PoliticalWorldAPI 1.19 включает регистрацию аддонов, c
 
 Исходники публичного API находятся в `src/PoliticalWorld/API/`.
 
+## Open source, форки и вклад в проект
+
+Political World открыт под MIT License. Форки, патчи, PR, эксперименты и помощь с ИИ приветствуются.
+
+Для работы с core сначала прочитайте:
+
+- [AGENTS.md](AGENTS.md)
+- [ARCHITECTURE.md](ARCHITECTURE.md)
+- [KNOWN_RISKS.md](KNOWN_RISKS.md)
+- [DEVELOPMENT.md](DEVELOPMENT.md)
+
+Форки должны явно указывать, что они неофициальные, и сохранять исходный текст MIT License.
+
 ## Сообщество
 
 Для обычного общения, тестов и предложений удобнее Discord. GitHub Discussions остаётся местом для API-вопросов, тестирования аддонов и длинных технических обсуждений.

@@ -1,25 +1,27 @@
-# Создание аддона с помощью ИИ
+# Создание аддонов Political World с помощью ИИ
 
-Репозиторий специально проектируется так, чтобы ChatGPT, Codex, Claude и другие ассистенты могли работать по публичному контракту, а не угадывать внутренности.
+ChatGPT, Codex, Claude и другие ассистенты здесь нормальны. Репозиторий специально устроен так, чтобы ИИ мог читать реальный контракт, а не угадывать внутренности.
+
+## С чего начать
+
+- в корне репозитория: `AI_START_HERE.md`;
+- текущий справочник: `API_REFERENCE_1_19.md`;
+- тематическая страница по нужной системе.
 
 ## Готовый промт
 
 ```text
-Read Political World's AI_START_HERE.md and the relevant RU/EN API docs.
-Create a NeoModLoader addon using only the public Lous12.PoliticalWorld.PoliticalWorldAPI.
-Do not depend on Main, ScenarioBridge, or other internal Political World classes.
+Read Political World's AI_START_HERE.md and the current API docs.
+Create a NeoModLoader addon using only public Lous12.PoliticalWorld.PoliticalWorldAPI.
 Use a stable namespaced addon GUID and namespaced content IDs.
-Call PoliticalWorldAPI.IsCompatible and check optional capabilities when needed.
-Use Event Bus / Rare Political Event Registry instead of a permanent world-scanning Update loop.
-Use addon-private kingdom data/tags for internal state.
-Follow the SDK addon template and report any API feature that is missing instead of reaching into internals.
+Check the minimum API version actually required and optional capabilities when needed.
+Prefer Event Bus / registered events / rare events over permanent world-scanning Update loops.
+Use addon-owned data/tags for private state.
+If the API cannot support the requested feature, explain the missing capability instead of using reflection into Political World internals.
 ```
 
-## Что дать ИИ при ошибке
+## Если что-то сломалось
 
-1. ваш `mod.json`;
-2. полный compile error из `Player.log`;
-3. `PoliticalWorldAPI.GetDiagnosticsReport(AddonId)`;
-4. файл/пример из SDK, который вы пытались повторить.
+Дайте ИИ `mod.json`, полный error из `Player.log`, diagnostics PoliticalWorldAPI и точный пример/страницу документации, по которой работали.
 
-Не просите ИИ «обойти API через reflection», если нужного метода нет. Лучше зафиксировать недостающую capability и расширить публичный API.
+Не надо "чинить" отсутствующую capability через reflection во внутренние классы Political World.

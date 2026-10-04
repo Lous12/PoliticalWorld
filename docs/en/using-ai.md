@@ -1,25 +1,27 @@
-# Creating an addon with AI
+# Creating Political World addons with AI
 
-The repository is intentionally structured so ChatGPT, Codex, Claude, and other assistants can follow a public contract instead of guessing internals.
+ChatGPT, Codex, Claude and other assistants are welcome here. The repository is structured so they can read a real contract instead of guessing internals.
 
-## Ready-to-use prompt
+## Start with
+
+- repository root: `AI_START_HERE.md`
+- current API reference: `API_REFERENCE_1_19.md`
+- the topic page relevant to the addon
+
+## Ready prompt
 
 ```text
-Read Political World's AI_START_HERE.md and the relevant RU/EN API docs.
-Create a NeoModLoader addon using only the public Lous12.PoliticalWorld.PoliticalWorldAPI.
-Do not depend on Main, ScenarioBridge, or other internal Political World classes.
+Read Political World's AI_START_HERE.md and the current API docs.
+Create a NeoModLoader addon using only public Lous12.PoliticalWorld.PoliticalWorldAPI.
 Use a stable namespaced addon GUID and namespaced content IDs.
-Call PoliticalWorldAPI.IsCompatible and check optional capabilities when needed.
-Use Event Bus / Rare Political Event Registry instead of a permanent world-scanning Update loop.
-Use addon-private kingdom data/tags for internal state.
-Follow the SDK addon template and report any API feature that is missing instead of reaching into internals.
+Check the minimum API version actually required and optional capabilities when needed.
+Prefer Event Bus / registered events / rare events over permanent world-scanning Update loops.
+Use addon-owned data/tags for private state.
+If the API cannot support the requested feature, explain the missing capability instead of using reflection into Political World internals.
 ```
 
-## What to give the AI when something fails
+## When something fails
 
-1. your `mod.json`;
-2. the full compile error from `Player.log`;
-3. `PoliticalWorldAPI.GetDiagnosticsReport(AddonId)`;
-4. the SDK file/example you were trying to follow.
+Give the AI your `mod.json`, the complete error from `Player.log`, API diagnostics when available, and the exact example/doc page you followed.
 
-Do not ask the AI to bypass a missing API with reflection. Record the missing capability and extend the public API instead.
+Do not "fix" a missing addon capability by reaching into private Political World classes.
