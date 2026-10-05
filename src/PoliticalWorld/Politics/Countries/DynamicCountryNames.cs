@@ -113,13 +113,24 @@ namespace Lous12.PoliticalWorld
                     ? rawName
                     : GetStableObjectIdentity(kingdom);
 
-                // Load order can hand us a name we already wrapped ("State of
-                // X" in an old save). Storing that as the base is what turned it
-                // into "National State of State of X" for good.
-                storedBase = UnwrapPoliticalNameLayers(
-                    storedBase,
-                    CountryNameMaxUnwrapLayers
-                );
+                // Data can arrive here already carrying one of our generated
+                // names ("State of X" in an old save), and then every later
+                // refresh wraps the wrapped name again. Peel only when the
+                // cached political name proves we wrapped this exact name
+                // before: "State of X" is also a name a player can type, and
+                // this is the only evidence the save has.
+                string cachedInner;
+                if (
+                    !string.IsNullOrWhiteSpace(cachedPolitical) &&
+                    TryUnwrapPoliticalName(cachedPolitical, out cachedInner) &&
+                    string.Equals(cachedInner, storedBase, StringComparison.Ordinal)
+                )
+                {
+                    storedBase = UnwrapPoliticalNameLayers(
+                        storedBase,
+                        CountryNameMaxUnwrapLayers
+                    );
+                }
 
                 if (!string.IsNullOrWhiteSpace(storedBase))
                 {
@@ -177,23 +188,29 @@ namespace Lous12.PoliticalWorld
                     )
                 )
                 {
-                    storedBase = UnwrapPoliticalNameLayers(
+                    string peeledBase = UnwrapPoliticalNameLayers(
                         storedBase,
                         CountryNameMaxUnwrapLayers
                     );
-                    SetKingdomStringData(
-                        kingdom,
-                        BaseCountryNameDataKey,
-                        storedBase
-                    );
+                    // Only remember the repair when it actually happened. A
+                    // save whose localization is not loaded yet cannot be
+                    // recognized, and marking it here would mean never
+                    // repairing it later.
+                    if (!string.Equals(peeledBase, storedBase, StringComparison.Ordinal))
+                    {
+                        storedBase = peeledBase;
+                        SetKingdomStringData(
+                            kingdom,
+                            BaseCountryNameDataKey,
+                            storedBase
+                        );
+                        SetKingdomStringData(
+                            kingdom,
+                            CountryNameSourceDataKey,
+                            CountryNameSourceRepaired
+                        );
+                    }
                 }
-
-                // Mark it either way: running twice would peel a second layer.
-                SetKingdomStringData(
-                    kingdom,
-                    CountryNameSourceDataKey,
-                    CountryNameSourceRepaired
-                );
             }
 
             return storedBase;
